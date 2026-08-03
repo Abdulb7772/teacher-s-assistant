@@ -16,13 +16,14 @@ export const signToken = (userId: string, rememberMe: boolean): string => {
 };
 
 export const setAuthCookie = (res: Response, userId: string, rememberMe: boolean): string => {
-  const { ms } = getExpiry(rememberMe);
   const token = signToken(userId, rememberMe);
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: ms,
+    // No maxAge => session cookie: gone when the browser closes.
+    // Remember me => persistent cookie until JWT_REMEMBER_EXPIRES_IN.
+    ...(rememberMe ? { maxAge: getExpiry(true).ms } : {}),
     path: "/",
   });
   return token;
