@@ -5,7 +5,7 @@
   "main": "dist/src/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "npm install && tsc",
+    "build": "npm install --include=dev && tsc",
     "start": "node dist/src/server.js",
     "typecheck": "tsc --noEmit"
   },
