@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Mail, MapPin, Phone } from "lucide-react";
+import { Mail, Phone } from "lucide-react";
 import Logo from "../ui/Logo";
 
 const QUICK_LINKS = [
@@ -39,13 +39,10 @@ export default function PublicFooter() {
             <h4 className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-gold/70">Contact</h4>
             <ul className="space-y-2.5 text-sm text-white/55">
               <li className="flex items-center gap-2.5">
-                <Mail size={14} className="text-gold/60" /> teacher.assistant@portal.edu
+                <Mail size={14} className="text-gold/60" /> abdulb7772@gmail.com
               </li>
               <li className="flex items-center gap-2.5">
-                <Phone size={14} className="text-gold/60" /> +92 300 1234567
-              </li>
-              <li className="flex items-center gap-2.5">
-                <MapPin size={14} className="text-gold/60" /> University Campus
+                <Phone size={14} className="text-gold/60" /> +923110883510
               </li>
             </ul>
           </div>
