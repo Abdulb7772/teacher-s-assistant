@@ -12,7 +12,7 @@ const getExpiry = (rememberMe: boolean): { days: number; ms: number } => {
 
 export const signToken = (userId: string, rememberMe: boolean): string => {
   const { days } = getExpiry(rememberMe);
-  return jwt.sign({ id: userId }, process.env.JWT_SECRET as string, { expiresIn: `${days}d` });
+  return jwt.sign({ id: userId, remember: rememberMe }, process.env.JWT_SECRET as string, { expiresIn: `${days}d` });
 };
 
 export const setAuthCookie = (res: Response, userId: string, rememberMe: boolean): string => {

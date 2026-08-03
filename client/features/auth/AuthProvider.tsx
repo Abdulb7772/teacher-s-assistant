@@ -44,6 +44,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const user = data?.user ?? null;
 
+  // Non-remembered sessions die on every full page load: the provider remounts
+  // only on reload (SPA navigation keeps it mounted), so this effect runs exactly
+  // once per page load. Awaiting the logout guarantees the cookie is gone before
+  // navigating, so the middleware can't bounce us back into a redirect loop.
+  useEffect(() => {
+    if (data && data.remembered === false) {
+      authService
+        .logout()
+        .catch(() => {})
+        .finally(() => {
+          queryClient.clear();
+          router.replace("/login");
+        });
+    }
+  }, [data, queryClient, router]);
+
   // 401 on any API call => session expired: clear cache + send to login.
   useEffect(() => {
     setUnauthorizedHandler(() => {

@@ -13,7 +13,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const token = setAuthCookie(res, user._id.toString(), Boolean(rememberMe));
-  res.json({ success: true, message: "Welcome back", user: user.toSafeJSON(), token });
+  res.json({ success: true, message: "Welcome back", user: user.toSafeJSON(), token, remembered: Boolean(rememberMe) });
 });
 
 export const logout = asyncHandler(async (req: Request, res: Response) => {
@@ -22,7 +22,7 @@ export const logout = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const profile = asyncHandler(async (req: Request, res: Response) => {
-  res.json({ success: true, user: req.user!.toSafeJSON() });
+  res.json({ success: true, user: req.user!.toSafeJSON(), remembered: req.remembered ?? false });
 });
 
 export const updateProfile = asyncHandler(async (req: Request, res: Response) => {

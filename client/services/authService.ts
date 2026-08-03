@@ -13,6 +13,7 @@ export interface AuthResponse {
   success: boolean;
   message?: string;
   user: User;
+  remembered?: boolean;
 }
 
 export interface LogoutResponse {

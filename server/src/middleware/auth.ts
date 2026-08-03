@@ -9,6 +9,7 @@ declare global {
   namespace Express {
     interface Request {
       user?: IUser;
+      remembered?: boolean;
     }
   }
 }
@@ -20,9 +21,9 @@ const protect = asyncHandler(async (req: Request, res: Response, next: NextFunct
   const token = bearer || req.cookies?.[COOKIE_NAME];
   if (!token) throw new ApiError(401, "Not authorized, please sign in");
 
-  let decoded: { id: string };
+  let decoded: { id: string; remember?: boolean };
   try {
-    decoded = jwt.verify(token, process.env.JWT_SECRET as string) as { id: string };
+    decoded = jwt.verify(token, process.env.JWT_SECRET as string) as { id: string; remember?: boolean };
   } catch {
     throw new ApiError(401, "Session expired, please sign in again");
   }
@@ -32,6 +33,7 @@ const protect = asyncHandler(async (req: Request, res: Response, next: NextFunct
   if (!user) throw new ApiError(401, "Account no longer exists");
 
   req.user = user;
+  req.remembered = Boolean(decoded.remember);
   next();
 });
 
