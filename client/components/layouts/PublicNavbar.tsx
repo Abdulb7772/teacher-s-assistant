@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { LayoutDashboard, LogIn, Menu, X } from "lucide-react";
 import Logo from "../ui/Logo";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/features/auth/AuthProvider";
 
 const LINKS = [
   { to: "/", label: "Home" },

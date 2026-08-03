@@ -4,11 +4,11 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Logo from "../ui/Logo";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/features/auth/AuthProvider";
 import { FullScreenLoader } from "../ui/Spinner";
 import type { ReactNode } from "react";
 
-export default function AuthLayout({ children, isSignup = false }: { children: ReactNode; isSignup?: boolean }) {
+export default function AuthLayout({ children }: { children: ReactNode }) {
   const { loading, isAuthenticated } = useAuth();
   const router = useRouter();
 

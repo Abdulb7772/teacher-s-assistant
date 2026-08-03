@@ -1,5 +1,5 @@
 import api from "./api";
-import type { ApiResponse, Pagination, Student, StudentPerformance } from "@/lib/types";
+import type { ApiResponse, Pagination, Student, StudentPerformance } from "@/types";
 
 export interface StudentFilters {
   page?: number;

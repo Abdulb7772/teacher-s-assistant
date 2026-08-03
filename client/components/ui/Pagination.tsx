@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import type { Pagination as PaginationType } from "@/lib/types";
+import type { Pagination as PaginationType } from "@/types";
 
 export default function Pagination({
   pagination,

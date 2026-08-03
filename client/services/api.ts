@@ -13,21 +13,13 @@ const api = axios.create({
 });
 
 let onUnauthorized: (() => void) | null = null;
-let accessToken: string | null = null;
 
-export const setUnauthorizedHandler = (fn: () => void): void => {
+export const setUnauthorizedHandler = (fn: (() => void) | null): void => {
   onUnauthorized = fn;
 };
 
-export const setAccessToken = (token: string | null): void => {
-  accessToken = token;
-};
-
-api.interceptors.request.use((config) => {
-  if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`;
-  return config;
-});
-
+// The JWT lives in an HttpOnly cookie (backend sets it on login), so axios
+// never touches the token — withCredentials sends it on every request.
 api.interceptors.response.use(
   (res) => res,
   (error: AxiosError<{ success: boolean; message: string; errors?: { field: string; message: string }[] }>) => {

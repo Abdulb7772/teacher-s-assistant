@@ -1,5 +1,5 @@
 import api from "./api";
-import type { User } from "@/lib/types";
+import type { User } from "@/types";
 
 export interface CreateUserPayload {
   name: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { SearchX } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -16,31 +16,36 @@ import ProgressBar from "@/components/ui/ProgressBar";
 import Button from "@/components/ui/Button";
 import Pagination from "@/components/ui/Pagination";
 import Alert from "@/components/ui/Alert";
-import { useQuery } from "@tanstack/react-query";
-import type { StudentPerformance } from "@/lib/types";
+import type { StudentPerformance } from "@/types";
+import { useClassesQuery } from "@/features/meta/useMetaQueries";
 
 export default function StudentsPage() {
   const router = useRouter();
 
-  const classesQuery = useQuery({ queryKey: ["classes"], queryFn: publicService.getPublicClasses });
-  const classes = classesQuery.data?.data ?? [];
+  const classesQuery = useClassesQuery();
 
   const classOptions = useMemo(
-    () => [{ value: "", label: "All Classes" }, ...classes.map((c) => ({ value: c.name, label: c.name }))],
-    [classes]
+    () => [
+      { value: "", label: "All Classes" },
+      ...(classesQuery.data?.data ?? []).map((c) => ({ value: c.name, label: c.name })),
+    ],
+    [classesQuery.data]
   );
 
   const { data, pagination, loading, error, params, setFilter, refresh, searchInput, setSearchInput } =
-    usePaginatedQuery<StudentPerformance>(publicService.getPublicStudents, {
+    usePaginatedQuery<StudentPerformance>(["public-students"], publicService.getPublicStudents, {
       initialParams: { page: 1, limit: 10 },
     });
 
-  const highlight = (text: string): React.ReactNode =>
-    searchInput && text.toLowerCase().includes(searchInput.toLowerCase()) ? (
-      <mark className="rounded bg-gold/30 px-0.5 text-gold-light">{text}</mark>
-    ) : (
-      text
-    );
+  const highlight = useCallback(
+    (text: string): React.ReactNode =>
+      searchInput && text.toLowerCase().includes(searchInput.toLowerCase()) ? (
+        <mark className="rounded bg-gold/30 px-0.5 text-gold-light">{text}</mark>
+      ) : (
+        text
+      ),
+    [searchInput]
+  );
 
   const columns = useMemo<ColumnDef<StudentPerformance>[]>(
     () => [
@@ -89,7 +94,7 @@ export default function StudentsPage() {
         cell: ({ getValue }) => <GradeBadge grade={String(getValue())} />,
       },
     ],
-    [searchInput]
+    [highlight]
   );
 
   return (

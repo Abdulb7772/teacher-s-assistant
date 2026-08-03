@@ -1,28 +1,31 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import useDebounce from "./useDebounce";
 import type { ApiErrorPayload } from "@/services/api";
+import type { Pagination } from "@/types";
 
 interface QueryState<T> {
   data: T[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    pages: number;
-  } | null;
+  pagination: Pagination | null;
   loading: boolean;
   error: string | null;
 }
 
 interface UsePaginatedQueryOptions {
   initialParams?: Record<string, string | number>;
+  staleTime?: number;
 }
 
-type QueryFn<T> = (params: Record<string, unknown>) => Promise<{ data: T[]; pagination: unknown }>;
+type QueryFn<T> = (params: Record<string, unknown>) => Promise<{ data: T[]; pagination: Pagination }>;
 
+// Query-store-backed pagination: every distinct (page, filter, search) combo is
+// cached under its own query key, so back-navigation and filter toggles are
+// instant and never re-hit the network. keepPreviousData keeps the last page
+// visible while the next one loads instead of flashing skeletons.
 export default function usePaginatedQuery<T>(
+  queryKey: readonly string[],
   queryFn: QueryFn<T>,
-  { initialParams = {} }: UsePaginatedQueryOptions = {}
+  { initialParams = {}, staleTime = 60 * 1000 }: UsePaginatedQueryOptions = {}
 ) {
   const [params, setParams] = useState<Record<string, string | number>>({
     page: 1,
@@ -32,55 +35,43 @@ export default function usePaginatedQuery<T>(
   const [searchInput, setSearchInput] = useState("");
   const search = useDebounce(searchInput, 400);
 
+  // Search and page-size changes always restart from page 1.
   useEffect(() => {
     setParams((p) => (p.page === 1 ? p : { ...p, page: 1 }));
-  }, [search, params.limit]);
+  }, [search]);
 
-  const [state, setState] = useState<QueryState<T>>({
-    data: [],
-    pagination: null,
-    loading: true,
-    error: null,
+  const queryParams = useMemo(() => ({ ...params, search }), [params, search]);
+
+  const setFilter = useCallback((key: string, value: string | number): void => {
+    setParams((p) => ({
+      ...p,
+      [key]: value,
+      ...(key === "page" || key === "limit" ? {} : { page: 1 }),
+    }));
+  }, []);
+
+  const { data, isPending, isError, error, refetch } = useQuery<{ data: T[]; pagination: Pagination }>({
+    queryKey: [...queryKey, queryParams],
+    queryFn: () => queryFn(queryParams),
+    staleTime,
+    placeholderData: keepPreviousData,
+    retry: 1,
   });
 
-  const requestIdRef = useRef(0);
-  const abortRef = useRef<AbortController | null>(null);
+  const state: QueryState<T> = {
+    data: data?.data ?? [],
+    pagination: data?.pagination ?? null,
+    loading: isPending,
+    error: isError ? (error as ApiErrorPayload).message || "Failed to load" : null,
+  };
 
-  const run = useCallback(() => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    const requestId = ++requestIdRef.current;
-
-    setState((s) => ({ ...s, loading: s.data.length === 0, error: null }));
-    queryFn({ ...params, search })
-      .then((res) => {
-        // Ignore stale responses: a newer filter/search/page request may have superseded this one.
-        if (requestId !== requestIdRef.current) return;
-        setState({
-          data: res.data,
-          pagination: res.pagination as QueryState<T>["pagination"],
-          loading: false,
-          error: null,
-        });
-      })
-      .catch((err: ApiErrorPayload) => {
-        if (requestId !== requestIdRef.current) return;
-        if ((err as { message?: string })?.message === "canceled") return;
-        setState((s) => ({ ...s, loading: false, error: err.message || "Failed to load" }));
-      });
-  }, [queryFn, params, search]);
-
-  useEffect(() => {
-    run();
-    return () => {
-      abortRef.current?.abort();
-      requestIdRef.current++;
-    };
-  }, [run]);
-
-  const setFilter = (key: string, value: string | number): void =>
-    setParams((p) => ({ ...p, [key]: value, ...(key === "page" ? {} : { page: 1 }) }));
-
-  return { ...state, params, setFilter, refresh: run, searchInput, setSearchInput, search };
+  return {
+    ...state,
+    params,
+    setFilter,
+    refresh: () => void refetch(),
+    searchInput,
+    setSearchInput,
+    search,
+  };
 }

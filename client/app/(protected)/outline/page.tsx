@@ -1,10 +1,10 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
-import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Form, Formik, Field, type FieldInputProps, type FieldMetaProps } from "formik";
-import * as Yup from "yup";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation } from "@tanstack/react-query";
+import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import toast from "react-hot-toast";
 import { Check, CheckCircle2, Clock, FileDown, Pencil, Plus, RotateCcw, SearchX, Trash2, X } from "lucide-react";
 import Badge from "@/components/ui/Badge";
@@ -22,56 +22,19 @@ import Select from "@/components/ui/Select";
 import Textarea from "@/components/ui/Textarea";
 import useKeyShortcut from "@/hooks/useKeyShortcut";
 import usePaginatedQuery from "@/hooks/usePaginatedQuery";
-import { MONTH_OPTIONS, MONTHS, STATUS_OPTIONS, WEEK_OPTIONS, WEEKS } from "@/lib/constants";
+import { MONTH_OPTIONS, STATUS_OPTIONS, WEEK_OPTIONS } from "@/lib/constants";
 import { exportPDF, type ExportColumn } from "@/lib/exportUtils";
 import { formatDate } from "@/lib/formatters";
-import type { Course, CourseStatus } from "@/lib/types";
+import type { Course, CourseStatus } from "@/types";
 import * as courseService from "@/services/courseService";
 import type { CoursePayload } from "@/services/courseService";
-import * as subjectService from "@/services/subjectService";
-import * as classService from "@/services/classService";
-
-interface FormValues {
-  subject: string;
-  className: string;
-  month: string;
-  week: string;
-  lectureNumber: string;
-  title: string;
-  description: string;
-  duration: string;
-  notes: string;
-}
-
-const DEFAULT_VALUES: FormValues = {
-  subject: "",
-  className: "",
-  month: "January",
-  week: "1",
-  lectureNumber: "",
-  title: "",
-  description: "",
-  duration: "",
-  notes: "",
-};
-
-const WEEK_FORM_OPTIONS = WEEKS.map((w) => ({ value: String(w), label: `Week ${w}` }));
-const MONTH_FORM_OPTIONS = MONTHS.map((m) => ({ value: m, label: m }));
-
-const validationSchema = Yup.object({
-  subject: Yup.string().required("Subject is required"),
-  className: Yup.string().required("Class is required"),
-  month: Yup.string().required("Month is required"),
-  week: Yup.string().required("Week is required"),
-  lectureNumber: Yup.number()
-    .typeError("Lecture number is required")
-    .required("Lecture number is required")
-    .min(1, "Must be at least 1"),
-  title: Yup.string().required("Topic title is required"),
-  description: Yup.string(),
-  duration: Yup.string().required("Duration is required"),
-  notes: Yup.string(),
-});
+import { useSubjectsQuery, useClassesQuery } from "@/features/meta/useMetaQueries";
+import {
+  outlineFormSchema,
+  MONTH_FORM_OPTIONS,
+  WEEK_FORM_OPTIONS,
+  type OutlineFormValues,
+} from "@/features/course-outline/schema";
 
 const EXPORT_COLUMNS: ExportColumn<Course>[] = [
   { header: "Lecture", accessor: (r) => r.lectureNumber },
@@ -87,7 +50,7 @@ const EXPORT_COLUMNS: ExportColumn<Course>[] = [
 
 export default function OutlinePage() {
   const { data, pagination, loading, params, setFilter, refresh, searchInput, setSearchInput, search } =
-    usePaginatedQuery<Course>(courseService.getCourses, {
+    usePaginatedQuery<Course>(["courses"], courseService.getCourses, {
       initialParams: { page: 1, limit: 10, sortBy: "lectureNumber", sortOrder: "asc" },
     });
 
@@ -98,21 +61,40 @@ export default function OutlinePage() {
   const [outcomes, setOutcomes] = useState<string[]>([""]);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const subjectsQuery = useQuery({ queryKey: ["subjects"], queryFn: subjectService.getSubjects });
-  const subjects = subjectsQuery.data?.data ?? [];
-  const classesQuery = useQuery({ queryKey: ["classes"], queryFn: classService.getClasses });
-  const classes = classesQuery.data?.data ?? [];
+  const subjectsQuery = useSubjectsQuery();
+  const classesQuery = useClassesQuery();
 
   const subjectOptions = useMemo(
-    () => [{ value: "", label: "All Subjects" }, ...subjects.map((s) => ({ value: s.name, label: s.name }))],
-    [subjects]
+    () => [{ value: "", label: "All Subjects" }, ...(subjectsQuery.data?.data ?? []).map((s) => ({ value: s.name, label: s.name }))],
+    [subjectsQuery.data]
   );
-  const subjectFormOptions = useMemo(() => subjects.map((s) => ({ value: s.name, label: s.name })), [subjects]);
+  const subjectFormOptions = useMemo(
+    () => (subjectsQuery.data?.data ?? []).map((s) => ({ value: s.name, label: s.name })),
+    [subjectsQuery.data]
+  );
   const classOptions = useMemo(
-    () => [{ value: "", label: "All Classes" }, ...classes.map((c) => ({ value: c.name, label: c.name }))],
-    [classes]
+    () => [{ value: "", label: "All Classes" }, ...(classesQuery.data?.data ?? []).map((c) => ({ value: c.name, label: c.name }))],
+    [classesQuery.data]
   );
-  const classFormOptions = useMemo(() => classes.map((c) => ({ value: c.name, label: c.name })), [classes]);
+  const classFormOptions = useMemo(
+    () => (classesQuery.data?.data ?? []).map((c) => ({ value: c.name, label: c.name })),
+    [classesQuery.data]
+  );
+
+  const form = useForm<OutlineFormValues>({
+    resolver: zodResolver(outlineFormSchema),
+    defaultValues: {
+      subject: "",
+      className: "",
+      month: "January",
+      week: "1",
+      lectureNumber: "",
+      title: "",
+      description: "",
+      duration: "",
+      notes: "",
+    },
+  });
 
   const closeModal = useCallback(() => {
     setModalOpen(false);
@@ -122,14 +104,29 @@ export default function OutlinePage() {
   const openCreate = useCallback(() => {
     setEditing(null);
     setOutcomes([""]);
+    form.reset();
     setModalOpen(true);
-  }, []);
+  }, [form]);
 
-  const openEdit = useCallback((course: Course) => {
-    setEditing(course);
-    setOutcomes(course.learningOutcomes.length ? [...course.learningOutcomes] : [""]);
-    setModalOpen(true);
-  }, []);
+  const openEdit = useCallback(
+    (course: Course) => {
+      setEditing(course);
+      setOutcomes(course.learningOutcomes.length ? [...course.learningOutcomes] : [""]);
+      form.reset({
+        subject: course.subject ?? "",
+        className: course.class ?? "",
+        month: course.month,
+        week: String(course.week),
+        lectureNumber: String(course.lectureNumber),
+        title: course.title,
+        description: course.description,
+        duration: course.duration,
+        notes: course.notes,
+      });
+      setModalOpen(true);
+    },
+    [form]
+  );
 
   useKeyShortcut("n", openCreate);
   useKeyShortcut("/", () => searchRef.current?.focus());
@@ -214,10 +211,7 @@ export default function OutlinePage() {
     }
   }, [search, params.subject, params.class, params.month, params.week, params.status, params.sortBy, params.sortOrder]);
 
-  const onSubmit = async (
-    values: FormValues,
-    { setSubmitting }: { setSubmitting: (isSubmitting: boolean) => void }
-  ): Promise<void> => {
+  const onSubmit = form.handleSubmit(async (values) => {
     const payload: CoursePayload = {
       subject: values.subject,
       class: values.className,
@@ -238,10 +232,8 @@ export default function OutlinePage() {
       }
     } catch {
       /* toast shown by mutation onError */
-    } finally {
-      setSubmitting(false);
     }
-  };
+  });
 
   const columns: ColumnDef<Course>[] = [
     {
@@ -431,166 +423,108 @@ export default function OutlinePage() {
         subtitle={editing ? "Update the topic details below" : "Add a topic to your semester outline"}
         size="lg"
       >
-        <Formik
-          initialValues={
-            editing
-              ? {
-                  subject: editing.subject ?? "",
-                  className: editing.class ?? "",
-                  month: editing.month,
-                  week: String(editing.week),
-                  lectureNumber: String(editing.lectureNumber),
-                  title: editing.title,
-                  description: editing.description,
-                  duration: editing.duration,
-                  notes: editing.notes,
-                }
-              : DEFAULT_VALUES
-          }
-          validationSchema={validationSchema}
-          onSubmit={onSubmit}
-        >
-          {() => (
-            <Form noValidate className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field name="subject">
-                  {({ field, meta }: { field: FieldInputProps<string>; meta: FieldMetaProps<string> }) => (
-                    <Select
-                      label="Subject"
-                      options={subjectFormOptions}
-                      error={meta.touched && meta.error ? meta.error : undefined}
-                      {...field}
-                    />
-                  )}
-                </Field>
-                <Field name="className">
-                  {({ field, meta }: { field: FieldInputProps<string>; meta: FieldMetaProps<string> }) => (
-                    <Select
-                      label="Class"
-                      options={classFormOptions}
-                      error={meta.touched && meta.error ? meta.error : undefined}
-                      {...field}
-                    />
-                  )}
-                </Field>
-              </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <Field name="month">
-                  {({ field, meta }: { field: FieldInputProps<string>; meta: FieldMetaProps<string> }) => (
-                    <Select
-                      label="Month"
-                      options={MONTH_FORM_OPTIONS}
-                      error={meta.touched && meta.error ? meta.error : undefined}
-                      {...field}
-                    />
-                  )}
-                </Field>
-                <Field name="week">
-                  {({ field, meta }: { field: FieldInputProps<string>; meta: FieldMetaProps<string> }) => (
-                    <Select
-                      label="Week"
-                      options={WEEK_FORM_OPTIONS}
-                      error={meta.touched && meta.error ? meta.error : undefined}
-                      {...field}
-                    />
-                  )}
-                </Field>
-                <Field name="lectureNumber">
-                  {({ field, meta }: { field: FieldInputProps<string>; meta: FieldMetaProps<string> }) => (
-                    <Input
-                      label="Lecture Number"
-                      type="number"
-                      min={1}
-                      placeholder="1"
-                      error={meta.touched && meta.error ? meta.error : undefined}
-                      {...field}
-                    />
-                  )}
-                </Field>
-              </div>
-              <Field name="title">
-                {({ field, meta }: { field: FieldInputProps<string>; meta: FieldMetaProps<string> }) => (
+        <form noValidate onSubmit={onSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Select
+              label="Subject"
+              options={subjectFormOptions}
+              error={form.formState.errors.subject?.message}
+              {...form.register("subject")}
+            />
+            <Select
+              label="Class"
+              options={classFormOptions}
+              error={form.formState.errors.className?.message}
+              {...form.register("className")}
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Select
+              label="Month"
+              options={MONTH_FORM_OPTIONS}
+              error={form.formState.errors.month?.message}
+              {...form.register("month")}
+            />
+            <Select
+              label="Week"
+              options={WEEK_FORM_OPTIONS}
+              error={form.formState.errors.week?.message}
+              {...form.register("week")}
+            />
+            <Input
+              label="Lecture Number"
+              type="number"
+              min={1}
+              placeholder="1"
+              error={form.formState.errors.lectureNumber?.message}
+              {...form.register("lectureNumber")}
+            />
+          </div>
+          <Input
+            label="Topic Title"
+            placeholder="e.g. Introduction to Data Structures"
+            error={form.formState.errors.title?.message}
+            {...form.register("title")}
+          />
+          <Textarea
+            label="Description"
+            placeholder="Brief description of the topic"
+            rows={3}
+            error={form.formState.errors.description?.message}
+            {...form.register("description")}
+          />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Input
+              label="Duration"
+              placeholder="e.g. 2 hours"
+              error={form.formState.errors.duration?.message}
+              {...form.register("duration")}
+            />
+            <Textarea
+              label="Notes"
+              placeholder="Preparation notes (optional)"
+              rows={2}
+              error={form.formState.errors.notes?.message}
+              {...form.register("notes")}
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-white/60">
+              Learning Outcomes
+            </label>
+            <div className="space-y-2">
+              {outcomes.map((outcome, i) => (
+                <div key={i} className="flex gap-2">
                   <Input
-                    label="Topic Title"
-                    placeholder="e.g. Introduction to Data Structures"
-                    error={meta.touched && meta.error ? meta.error : undefined}
-                    {...field}
+                    value={outcome}
+                    onChange={(e) => updateOutcome(i, e.target.value)}
+                    placeholder={`Outcome ${i + 1}`}
+                    className="flex-1"
                   />
-                )}
-              </Field>
-              <Field name="description">
-                {({ field, meta }: { field: FieldInputProps<string>; meta: FieldMetaProps<string> }) => (
-                  <Textarea
-                    label="Description"
-                    placeholder="Brief description of the topic"
-                    rows={3}
-                    error={meta.touched && meta.error ? meta.error : undefined}
-                    {...field}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={X}
+                    onClick={() => removeOutcome(i)}
+                    className="h-9 w-9 shrink-0 px-0"
+                    aria-label={`Remove outcome ${i + 1}`}
                   />
-                )}
-              </Field>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field name="duration">
-                  {({ field, meta }: { field: FieldInputProps<string>; meta: FieldMetaProps<string> }) => (
-                    <Input
-                      label="Duration"
-                      placeholder="e.g. 2 hours"
-                      error={meta.touched && meta.error ? meta.error : undefined}
-                      {...field}
-                    />
-                  )}
-                </Field>
-                <Field name="notes">
-                  {({ field, meta }: { field: FieldInputProps<string>; meta: FieldMetaProps<string> }) => (
-                    <Textarea
-                      label="Notes"
-                      placeholder="Preparation notes (optional)"
-                      rows={2}
-                      error={meta.touched && meta.error ? meta.error : undefined}
-                      {...field}
-                    />
-                  )}
-                </Field>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-white/60">
-                  Learning Outcomes
-                </label>
-                <div className="space-y-2">
-                  {outcomes.map((outcome, i) => (
-                    <div key={i} className="flex gap-2">
-                      <Input
-                        value={outcome}
-                        onChange={(e) => updateOutcome(i, e.target.value)}
-                        placeholder={`Outcome ${i + 1}`}
-                        className="flex-1"
-                      />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        icon={X}
-                        onClick={() => removeOutcome(i)}
-                        className="h-9 w-9 shrink-0 px-0"
-                        aria-label={`Remove outcome ${i + 1}`}
-                      />
-                    </div>
-                  ))}
                 </div>
-                <Button variant="ghost" size="sm" icon={Plus} onClick={() => setOutcomes([...outcomes, ""])} className="mt-2 text-gold">
-                  Add outcome
-                </Button>
-              </div>
-              <div className="flex justify-end gap-3 pt-2">
-                <Button variant="ghost" onClick={closeModal}>
-                  Cancel
-                </Button>
-                <Button type="submit" loading={createMutation.isPending || updateMutation.isPending}>
-                  {editing ? "Save Changes" : "Create Topic"}
-                </Button>
-              </div>
-            </Form>
-          )}
-        </Formik>
+              ))}
+            </div>
+            <Button variant="ghost" size="sm" icon={Plus} onClick={() => setOutcomes([...outcomes, ""])} className="mt-2 text-gold">
+              Add outcome
+            </Button>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="ghost" onClick={closeModal}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={createMutation.isPending || updateMutation.isPending}>
+              {editing ? "Save Changes" : "Create Topic"}
+            </Button>
+          </div>
+        </form>
       </Modal>
 
       <ConfirmDialog

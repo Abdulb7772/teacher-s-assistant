@@ -1,12 +1,13 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { Form, Formik, Field, type FieldInputProps, type FieldMetaProps } from "formik";
-import * as Yup from "yup";
 import toast from "react-hot-toast";
 import { Mail, ShieldCheck, UserPlus, Users } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
 import Avatar from "@/components/ui/Avatar";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -14,34 +15,10 @@ import Card from "@/components/ui/Card";
 import DataTable from "@/components/ui/DataTable";
 import Input from "@/components/ui/Input";
 import PageHeader from "@/components/ui/PageHeader";
-import { useAuth } from "@/contexts/AuthContext";
-import type { User } from "@/lib/types";
+import { useAuth } from "@/features/auth/AuthProvider";
+import type { User } from "@/types";
 import * as userService from "@/services/userService";
-import type { ColumnDef } from "@tanstack/react-table";
-
-interface FormValues {
-  name: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-}
-
-const DEFAULT_VALUES: FormValues = { name: "", email: "", password: "", confirmPassword: "" };
-
-const validationSchema = Yup.object({
-  name: Yup.string().required("Name is required").min(3, "Name is too short"),
-  email: Yup.string().email("Enter a valid email address").required("Email is required"),
-  password: Yup.string()
-    .required("Password is required")
-    .min(8, "At least 8 characters")
-    .matches(/[A-Z]/, "One uppercase letter")
-    .matches(/[a-z]/, "One lowercase letter")
-    .matches(/\d/, "One number")
-    .matches(/[^A-Za-z0-9]/, "One special character"),
-  confirmPassword: Yup.string()
-    .required("Please confirm the password")
-    .oneOf([Yup.ref("password")], "Passwords do not match"),
-});
+import { userFormSchema, type UserFormValues } from "@/features/forms/schemas";
 
 export default function ManageUsersPage() {
   const router = useRouter();
@@ -55,6 +32,12 @@ export default function ManageUsersPage() {
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["users"],
     queryFn: userService.getUsers,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const form = useForm<UserFormValues>({
+    resolver: zodResolver(userFormSchema),
+    defaultValues: { name: "", email: "", password: "", confirmPassword: "" },
   });
 
   const createMutation = useMutation({
@@ -62,25 +45,20 @@ export default function ManageUsersPage() {
     onSuccess: () => {
       toast.success("Employee account created");
       queryClient.invalidateQueries({ queryKey: ["users"] });
+      form.reset();
     },
     onError: (err) => toast.error(err.message),
   });
 
   if (user?.role !== "admin") return null;
 
-  const onSubmit = async (
-    values: FormValues,
-    { setSubmitting, resetForm }: { setSubmitting: (isSubmitting: boolean) => void; resetForm: () => void }
-  ): Promise<void> => {
+  const onSubmit = form.handleSubmit(async (values) => {
     try {
       await createMutation.mutateAsync({ ...values, name: values.name.trim(), email: values.email.trim() });
-      resetForm();
     } catch {
       /* toast shown by mutation onError */
-    } finally {
-      setSubmitting(false);
     }
-  };
+  });
 
   const columns: ColumnDef<User>[] = [
     {
@@ -142,61 +120,41 @@ export default function ManageUsersPage() {
           </div>
         </div>
 
-        <Formik initialValues={DEFAULT_VALUES} validationSchema={validationSchema} onSubmit={onSubmit}>
-          {({ isSubmitting }) => (
-            <Form noValidate className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field name="name">
-                {({ field, meta }: { field: FieldInputProps<string>; meta: FieldMetaProps<string> }) => (
-                  <Input
-                    label="Full Name"
-                    placeholder="e.g. Sarah Khan"
-                    error={meta.touched && meta.error ? meta.error : undefined}
-                    {...field}
-                  />
-                )}
-              </Field>
-              <Field name="email">
-                {({ field, meta }: { field: FieldInputProps<string>; meta: FieldMetaProps<string> }) => (
-                  <Input
-                    label="Email"
-                    icon={Mail}
-                    type="email"
-                    placeholder="employee@school.edu"
-                    error={meta.touched && meta.error ? meta.error : undefined}
-                    {...field}
-                  />
-                )}
-              </Field>
-              <Field name="password">
-                {({ field, meta }: { field: FieldInputProps<string>; meta: FieldMetaProps<string> }) => (
-                  <Input
-                    label="Temporary Password"
-                    type="password"
-                    placeholder="••••••••"
-                    error={meta.touched && meta.error ? meta.error : undefined}
-                    {...field}
-                  />
-                )}
-              </Field>
-              <Field name="confirmPassword">
-                {({ field, meta }: { field: FieldInputProps<string>; meta: FieldMetaProps<string> }) => (
-                  <Input
-                    label="Confirm Password"
-                    type="password"
-                    placeholder="••••••••"
-                    error={meta.touched && meta.error ? meta.error : undefined}
-                    {...field}
-                  />
-                )}
-              </Field>
-              <div className="sm:col-span-2 flex justify-end">
-                <Button type="submit" loading={isSubmitting} icon={UserPlus}>
-                  Create Employee Account
-                </Button>
-              </div>
-            </Form>
-          )}
-        </Formik>
+        <form noValidate onSubmit={onSubmit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Input
+            label="Full Name"
+            placeholder="e.g. Sarah Khan"
+            error={form.formState.errors.name?.message}
+            {...form.register("name")}
+          />
+          <Input
+            label="Email"
+            icon={Mail}
+            type="email"
+            placeholder="employee@school.edu"
+            error={form.formState.errors.email?.message}
+            {...form.register("email")}
+          />
+          <Input
+            label="Temporary Password"
+            type="password"
+            placeholder="••••••••"
+            error={form.formState.errors.password?.message}
+            {...form.register("password")}
+          />
+          <Input
+            label="Confirm Password"
+            type="password"
+            placeholder="••••••••"
+            error={form.formState.errors.confirmPassword?.message}
+            {...form.register("confirmPassword")}
+          />
+          <div className="sm:col-span-2 flex justify-end">
+            <Button type="submit" loading={createMutation.isPending} icon={UserPlus}>
+              Create Employee Account
+            </Button>
+          </div>
+        </form>
       </Card>
 
       <Card className="p-0">

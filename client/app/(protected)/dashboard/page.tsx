@@ -1,6 +1,5 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
   Award,
@@ -34,7 +33,7 @@ import ProgressBar from "@/components/ui/ProgressBar";
 import Skeleton, { SkeletonCards } from "@/components/ui/Skeleton";
 import StatCard from "@/components/ui/StatCard";
 import { formatDateTime, shortMonth } from "@/lib/formatters";
-import * as analyticsService from "@/services/analyticsService";
+import { useAnalyticsQuery } from "@/features/analytics/useAnalyticsQuery";
 
 const TOOLTIP_STYLE = {
   background: "#102C57",
@@ -65,15 +64,7 @@ function ChartSkeleton({ className = "" }: { className?: string }) {
 }
 
 export default function DashboardPage() {
-  const { data, isPending, isError, refetch } = useQuery({
-    queryKey: ["analytics"],
-    queryFn: analyticsService.getAnalytics,
-    // Analytics is only recomputed by backend on write; 5-min staleness keeps
-    // dashboard <-> analytics navigation instant (cache hit, no refetch).
-    staleTime: 5 * 60 * 1000,
-    // Show previously cached analytics immediately while a background refetch runs.
-    placeholderData: (prev) => prev,
-  });
+  const { data, isPending, isError, refetch } = useAnalyticsQuery();
   const analytics = data?.data;
 
   const header = (

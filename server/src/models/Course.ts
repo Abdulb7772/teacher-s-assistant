@@ -46,8 +46,11 @@ const courseSchema = new Schema<ICourse>(
 
 courseSchema.index({ title: "text", description: "text" });
 courseSchema.index({ lectureNumber: 1 });
+// Compound indexes matching the real query patterns: filters always arrive as
+// (subject|month|class) × status, and the dashboard sorts by completion date.
 courseSchema.index({ status: 1, lectureNumber: 1 });
-courseSchema.index({ month: 1, status: 1 });
-courseSchema.index({ subject: 1, class: 1 });
+courseSchema.index({ month: 1, week: 1, status: 1 });
+courseSchema.index({ subject: 1, class: 1, status: 1 });
+courseSchema.index({ status: 1, completionDate: 1 });
 
 export default mongoose.model<ICourse>("Course", courseSchema);

@@ -1,5 +1,5 @@
 import api from "./api";
-import type { ApiResponse, Subject } from "@/lib/types";
+import type { ApiResponse, Subject } from "@/types";
 
 export const getSubjects = (): Promise<ApiResponse<Subject[]>> => api.get("/subjects").then((r) => r.data);
 

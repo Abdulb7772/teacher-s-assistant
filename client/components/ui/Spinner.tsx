@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 function ProgressBar() {
   return (
     <div className="h-1 w-36 overflow-hidden rounded-full bg-white/10">
@@ -8,12 +10,17 @@ function ProgressBar() {
   );
 }
 
+function LogoImage({ className }: { className: string }) {
+  return (
+    <Image src="/logo.png" alt="" width={44} height={44} className={className} unoptimized />
+  );
+}
+
 export default function Spinner({ label = "Loading" }: { label?: string }) {
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
       <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-navy/90 shadow-glow">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.png" alt="" className="h-9 w-9 object-contain" />
+        <LogoImage className="h-9 w-9 object-contain" />
       </div>
       <p className="text-sm font-medium uppercase tracking-[0.25em] text-gold/70">{label}</p>
       <ProgressBar />
@@ -25,8 +32,7 @@ export function FullScreenLoader({ label = "Preparing your portal" }: { label?: 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 bg-navy">
       <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-navy/90 shadow-glow">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.png" alt="" className="h-11 w-11 object-contain" />
+        <LogoImage className="h-11 w-11 object-contain" />
       </div>
       <p className="text-sm font-semibold uppercase tracking-[0.3em] text-gold/80">{label}</p>
       <ProgressBar />

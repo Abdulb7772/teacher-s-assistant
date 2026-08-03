@@ -8,7 +8,7 @@ interface SearchInputProps {
   placeholder?: string;
   shortcut?: string;
   className?: string;
-  inputRef?: React.RefObject<HTMLInputElement>;
+  inputRef?: React.Ref<HTMLInputElement>;
 }
 
 export default function SearchInput({

@@ -10,7 +10,7 @@ export const getCourses = asyncHandler(async (req: Request, res: Response) => {
   const sort = courseSort(req.query as Record<string, string>);
 
   const [data, total] = await Promise.all([
-    Course.find(filter).sort(sort).skip((page - 1) * limit).limit(limit),
+    Course.find(filter).sort(sort).skip((page - 1) * limit).limit(limit).lean(),
     Course.countDocuments(filter),
   ]);
 

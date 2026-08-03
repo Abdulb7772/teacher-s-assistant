@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Clock, SearchX } from "lucide-react";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import * as publicService from "@/services/publicService";
@@ -14,10 +14,10 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Pagination from "@/components/ui/Pagination";
 import Alert from "@/components/ui/Alert";
-import { useQuery } from "@tanstack/react-query";
 import { MONTH_OPTIONS, WEEK_OPTIONS, STATUS_OPTIONS } from "@/lib/constants";
 import { formatDate } from "@/lib/formatters";
-import type { Course } from "@/lib/types";
+import type { Course } from "@/types";
+import { useSubjectsQuery, useClassesQuery } from "@/features/meta/useMetaQueries";
 
 export default function CourseOutlinePage() {
   const searchRef = useRef<HTMLInputElement>(null);
@@ -25,29 +25,38 @@ export default function CourseOutlinePage() {
 
   const [sorting, setSorting] = useState<SortingState>([]);
 
-  const subjectsQuery = useQuery({ queryKey: ["subjects"], queryFn: publicService.getPublicSubjects });
-  const subjects = subjectsQuery.data?.data ?? [];
-  const classesQuery = useQuery({ queryKey: ["classes"], queryFn: publicService.getPublicClasses });
-  const classes = classesQuery.data?.data ?? [];
+  const subjectsQuery = useSubjectsQuery();
+  const classesQuery = useClassesQuery();
 
   const subjectOptions = useMemo(
-    () => [{ value: "", label: "All Subjects" }, ...subjects.map((s) => ({ value: s.name, label: s.name }))],
-    [subjects]
+    () => [
+      { value: "", label: "All Subjects" },
+      ...(subjectsQuery.data?.data ?? []).map((s) => ({ value: s.name, label: s.name })),
+    ],
+    [subjectsQuery.data]
   );
   const classOptions = useMemo(
-    () => [{ value: "", label: "All Classes" }, ...classes.map((c) => ({ value: c.name, label: c.name }))],
-    [classes]
+    () => [
+      { value: "", label: "All Classes" },
+      ...(classesQuery.data?.data ?? []).map((c) => ({ value: c.name, label: c.name })),
+    ],
+    [classesQuery.data]
   );
 
   const { data, pagination, loading, error, params, setFilter, refresh, searchInput, setSearchInput } =
-    usePaginatedQuery<Course>(publicService.getPublicCourseOutline, { initialParams: { page: 1, limit: 10 } });
+    usePaginatedQuery<Course>(["public-outline"], publicService.getPublicCourseOutline, {
+      initialParams: { page: 1, limit: 10 },
+    });
 
-  const highlight = (text: string): React.ReactNode =>
-    searchInput && text.toLowerCase().includes(searchInput.toLowerCase()) ? (
-      <mark className="rounded bg-gold/30 px-0.5 text-gold-light">{text}</mark>
-    ) : (
-      text
-    );
+  const highlight = useCallback(
+    (text: string): React.ReactNode =>
+      searchInput && text.toLowerCase().includes(searchInput.toLowerCase()) ? (
+        <mark className="rounded bg-gold/30 px-0.5 text-gold-light">{text}</mark>
+      ) : (
+        text
+      ),
+    [searchInput]
+  );
 
   const columns = useMemo<ColumnDef<Course>[]>(
     () => [
@@ -110,7 +119,7 @@ export default function CourseOutlinePage() {
         ),
       },
     ],
-    [searchInput]
+    [highlight]
   );
 
   return (

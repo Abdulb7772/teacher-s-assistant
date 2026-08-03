@@ -1,11 +1,7 @@
 import api from "./api";
-import type { ApiResponse, Course, Pagination, Quiz, QuizSummary, SchoolClass, StudentPerformance, Subject } from "@/lib/types";
+import type { ApiResponse, Course, Pagination, Quiz, QuizSummary, StudentPerformance } from "@/types";
 import type { CourseFilters } from "./courseService";
 import type { StudentFilters } from "./studentService";
-
-export const getPublicSubjects = (): Promise<ApiResponse<Subject[]>> => api.get("/subjects").then((r) => r.data);
-
-export const getPublicClasses = (): Promise<ApiResponse<SchoolClass[]>> => api.get("/classes").then((r) => r.data);
 
 export const getPublicCourseOutline = (
   params: CourseFilters

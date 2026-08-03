@@ -1,5 +1,5 @@
 import api from "./api";
-import type { ApiResponse, Pagination, Quiz, QuizSummary } from "@/lib/types";
+import type { ApiResponse, Pagination, Quiz, QuizSummary } from "@/types";
 
 export interface QuizFilters {
   page?: number;

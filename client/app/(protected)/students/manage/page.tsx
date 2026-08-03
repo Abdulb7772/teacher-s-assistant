@@ -1,10 +1,10 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
-import type { ColumnDef } from "@tanstack/react-table";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Form, Formik, Field, type FieldInputProps, type FieldMetaProps } from "formik";
-import * as Yup from "yup";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation } from "@tanstack/react-query";
+import type { ColumnDef } from "@tanstack/react-table";
 import toast from "react-hot-toast";
 import { Pencil, Plus, Trash2, Users } from "lucide-react";
 import Avatar from "@/components/ui/Avatar";
@@ -23,43 +23,41 @@ import SearchInput from "@/components/ui/SearchInput";
 import Select from "@/components/ui/Select";
 import useKeyShortcut from "@/hooks/useKeyShortcut";
 import usePaginatedQuery from "@/hooks/usePaginatedQuery";
-import type { StudentPerformance } from "@/lib/types";
+import type { StudentPerformance } from "@/types";
 import * as studentService from "@/services/studentService";
 import type { StudentPayload } from "@/services/studentService";
-import * as classService from "@/services/classService";
-
-interface FormValues {
-  name: string;
-  className: string;
-}
-
-const DEFAULT_VALUES: FormValues = {
-  name: "",
-  className: "",
-};
-
-const validationSchema = Yup.object({
-  name: Yup.string().required("Name is required"),
-  className: Yup.string(),
-});
+import { useClassesQuery } from "@/features/meta/useMetaQueries";
+import { studentFormSchema, type StudentFormValues } from "@/features/forms/schemas";
 
 export default function ManageStudentsPage() {
   const { data, pagination, loading, params, setFilter, refresh, searchInput, setSearchInput } =
-    usePaginatedQuery<StudentPerformance>(studentService.getStudents, { initialParams: { page: 1, limit: 10 } });
+    usePaginatedQuery<StudentPerformance>(["students"], studentService.getStudents, {
+      initialParams: { page: 1, limit: 10 },
+    });
 
-  const classesQuery = useQuery({ queryKey: ["classes"], queryFn: classService.getClasses });
-  const classes = classesQuery.data?.data ?? [];
+  const classesQuery = useClassesQuery();
 
   const classOptions = useMemo(
-    () => [{ value: "", label: "All Classes" }, ...classes.map((c) => ({ value: c.name, label: c.name }))],
-    [classes]
+    () => [
+      { value: "", label: "All Classes" },
+      ...(classesQuery.data?.data ?? []).map((c) => ({ value: c.name, label: c.name })),
+    ],
+    [classesQuery.data]
   );
-  const classFormOptions = useMemo(() => classes.map((c) => ({ value: c.name, label: c.name })), [classes]);
+  const classFormOptions = useMemo(
+    () => (classesQuery.data?.data ?? []).map((c) => ({ value: c.name, label: c.name })),
+    [classesQuery.data]
+  );
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<StudentPerformance | null>(null);
   const [deleting, setDeleting] = useState<StudentPerformance | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  const form = useForm<StudentFormValues>({
+    resolver: zodResolver(studentFormSchema),
+    defaultValues: { name: "", className: "" },
+  });
 
   const closeModal = useCallback(() => {
     setModalOpen(false);
@@ -68,13 +66,18 @@ export default function ManageStudentsPage() {
 
   const openCreate = useCallback(() => {
     setEditing(null);
+    form.reset();
     setModalOpen(true);
-  }, []);
+  }, [form]);
 
-  const openEdit = useCallback((student: StudentPerformance) => {
-    setEditing(student);
-    setModalOpen(true);
-  }, []);
+  const openEdit = useCallback(
+    (student: StudentPerformance) => {
+      setEditing(student);
+      form.reset({ name: student.name, className: student.class ?? "" });
+      setModalOpen(true);
+    },
+    [form]
+  );
 
   useKeyShortcut("n", openCreate);
   useKeyShortcut("/", () => searchRef.current?.focus());
@@ -109,10 +112,7 @@ export default function ManageStudentsPage() {
     onError: (err) => toast.error(err.message),
   });
 
-  const onSubmit = async (
-    values: FormValues,
-    { setSubmitting }: { setSubmitting: (isSubmitting: boolean) => void }
-  ): Promise<void> => {
+  const onSubmit = form.handleSubmit(async (values) => {
     const payload: StudentPayload = {
       name: values.name.trim(),
       class: values.className,
@@ -125,10 +125,8 @@ export default function ManageStudentsPage() {
       }
     } catch {
       /* toast shown by mutation onError */
-    } finally {
-      setSubmitting(false);
     }
-  };
+  });
 
   const columns: ColumnDef<StudentPerformance>[] = [
     {
@@ -234,51 +232,28 @@ export default function ManageStudentsPage() {
         subtitle={editing ? "Update the student's details" : "Enroll a new student"}
         size="md"
       >
-        <Formik
-          initialValues={
-            editing
-              ? {
-                  name: editing.name,
-                  className: editing.class ?? "",
-                }
-              : DEFAULT_VALUES
-          }
-          validationSchema={validationSchema}
-          onSubmit={onSubmit}
-        >
-          {() => (
-            <Form noValidate className="space-y-4">
-              <Field name="name">
-                {({ field, meta }: { field: FieldInputProps<string>; meta: FieldMetaProps<string> }) => (
-                  <Input
-                    label="Full Name"
-                    placeholder="e.g. Ali Raza"
-                    error={meta.touched && meta.error ? meta.error : undefined}
-                    {...field}
-                  />
-                )}
-              </Field>
-              <Field name="className">
-                {({ field, meta }: { field: FieldInputProps<string>; meta: FieldMetaProps<string> }) => (
-                  <Select
-                    label="Class"
-                    options={classFormOptions}
-                    error={meta.touched && meta.error ? meta.error : undefined}
-                    {...field}
-                  />
-                )}
-              </Field>
-              <div className="flex justify-end gap-3 pt-2">
-                <Button variant="ghost" onClick={closeModal}>
-                  Cancel
-                </Button>
-                <Button type="submit" loading={createMutation.isPending || updateMutation.isPending}>
-                  {editing ? "Save Changes" : "Add Student"}
-                </Button>
-              </div>
-            </Form>
-          )}
-        </Formik>
+        <form noValidate onSubmit={onSubmit} className="space-y-4">
+          <Input
+            label="Full Name"
+            placeholder="e.g. Ali Raza"
+            error={form.formState.errors.name?.message}
+            {...form.register("name")}
+          />
+          <Select
+            label="Class"
+            options={classFormOptions}
+            error={form.formState.errors.className?.message}
+            {...form.register("className")}
+          />
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="ghost" onClick={closeModal}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={createMutation.isPending || updateMutation.isPending}>
+              {editing ? "Save Changes" : "Add Student"}
+            </Button>
+          </div>
+        </form>
       </Modal>
 
       <ConfirmDialog

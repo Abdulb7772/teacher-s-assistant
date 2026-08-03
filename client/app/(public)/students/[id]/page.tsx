@@ -12,12 +12,11 @@ import Avatar from "@/components/ui/Avatar";
 import StatCard from "@/components/ui/StatCard";
 import GradeBadge from "@/components/ui/GradeBadge";
 import DataTable from "@/components/ui/DataTable";
-import EmptyState from "@/components/ui/EmptyState";
 import Alert from "@/components/ui/Alert";
 import Skeleton, { SkeletonRows } from "@/components/ui/Skeleton";
 import { formatDate } from "@/lib/formatters";
 import { percentageOf } from "@/lib/grades";
-import type { Quiz } from "@/lib/types";
+import type { Quiz } from "@/types";
 
 const QUIZ_COLUMNS: ColumnDef<Quiz>[] = [
   {

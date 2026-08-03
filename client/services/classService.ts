@@ -1,5 +1,5 @@
 import api from "./api";
-import type { ApiResponse, SchoolClass } from "@/lib/types";
+import type { ApiResponse, SchoolClass } from "@/types";
 
 export const getClasses = (): Promise<ApiResponse<SchoolClass[]>> => api.get("/classes").then((r) => r.data);
 

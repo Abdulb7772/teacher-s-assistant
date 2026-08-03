@@ -1,7 +1,7 @@
 "use client";
 
-import { Form, Formik, Field, type FieldInputProps, type FieldMetaProps } from "formik";
-import * as Yup from "yup";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
 import { Lock, Sparkles, User } from "lucide-react";
 import Alert from "@/components/ui/Alert";
@@ -12,36 +12,9 @@ import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Logo from "@/components/ui/Logo";
 import PageHeader from "@/components/ui/PageHeader";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/features/auth/AuthProvider";
+import { PROFILE_SCHEMA, SECURITY_SCHEMA, type ProfileFormValues, type SecurityFormValues } from "@/features/forms/schemas";
 import type { ApiErrorPayload } from "@/services/api";
-
-interface ProfileValues {
-  name: string;
-  email: string;
-}
-
-interface SecurityValues {
-  currentPassword: string;
-  newPassword: string;
-  confirmPassword: string;
-}
-
-const PASSWORD_RULES = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
-
-const profileValidation = Yup.object({
-  name: Yup.string().required("Name is required"),
-  email: Yup.string().email("Enter a valid email address").required("Email is required"),
-});
-
-const securityValidation = Yup.object({
-  currentPassword: Yup.string().required("Current password is required"),
-  newPassword: Yup.string()
-    .required("New password is required")
-    .matches(PASSWORD_RULES, "Must be 8+ characters with upper, lower, number and special character"),
-  confirmPassword: Yup.string()
-    .required("Please confirm your new password")
-    .oneOf([Yup.ref("newPassword")], "Passwords do not match"),
-});
 
 function errorMessage(err: unknown): string {
   return (err as ApiErrorPayload).message || "Something went wrong";
@@ -50,34 +23,34 @@ function errorMessage(err: unknown): string {
 export default function SettingsPage() {
   const { user, updateProfile, changePassword } = useAuth();
 
-  const onProfile = async (
-    values: ProfileValues,
-    { setSubmitting }: { setSubmitting: (isSubmitting: boolean) => void }
-  ): Promise<void> => {
+  const profileForm = useForm<ProfileFormValues>({
+    resolver: zodResolver(PROFILE_SCHEMA),
+    defaultValues: { name: user?.name ?? "", email: user?.email ?? "" },
+  });
+
+  const securityForm = useForm<SecurityFormValues>({
+    resolver: zodResolver(SECURITY_SCHEMA),
+    defaultValues: { currentPassword: "", newPassword: "", confirmPassword: "" },
+  });
+
+  const onProfile = profileForm.handleSubmit(async (values) => {
     try {
       await updateProfile({ name: values.name.trim(), email: values.email.trim() });
       toast.success("Profile updated");
     } catch (err) {
       toast.error(errorMessage(err));
-    } finally {
-      setSubmitting(false);
     }
-  };
+  });
 
-  const onSecurity = async (
-    values: SecurityValues,
-    { setSubmitting, resetForm }: { setSubmitting: (isSubmitting: boolean) => void; resetForm: () => void }
-  ): Promise<void> => {
+  const onSecurity = securityForm.handleSubmit(async (values) => {
     try {
       await changePassword({ currentPassword: values.currentPassword, newPassword: values.newPassword });
       toast.success("Password changed successfully");
-      resetForm();
+      securityForm.reset();
     } catch (err) {
       toast.error(errorMessage(err));
-    } finally {
-      setSubmitting(false);
     }
-  };
+  });
 
   return (
     <>
@@ -105,40 +78,24 @@ export default function SettingsPage() {
               <p className="mt-1 text-xs text-white/45">{user?.email}</p>
             </div>
           </div>
-          <Formik
-            initialValues={{ name: user?.name ?? "", email: user?.email ?? "" }}
-            validationSchema={profileValidation}
-            onSubmit={onProfile}
-          >
-            {({ isSubmitting }) => (
-              <Form noValidate className="space-y-4">
-                <Field name="name">
-                  {({ field, meta }: { field: FieldInputProps<string>; meta: FieldMetaProps<string> }) => (
-                    <Input
-                      label="Full Name"
-                      placeholder="Your name"
-                      error={meta.touched && meta.error ? meta.error : undefined}
-                      {...field}
-                    />
-                  )}
-                </Field>
-                <Field name="email">
-                  {({ field, meta }: { field: FieldInputProps<string>; meta: FieldMetaProps<string> }) => (
-                    <Input
-                      label="Email"
-                      type="email"
-                      placeholder="you@example.com"
-                      error={meta.touched && meta.error ? meta.error : undefined}
-                      {...field}
-                    />
-                  )}
-                </Field>
-                <Button type="submit" loading={isSubmitting} className="w-full">
-                  Save Changes
-                </Button>
-              </Form>
-            )}
-          </Formik>
+          <form noValidate onSubmit={onProfile} className="space-y-4">
+            <Input
+              label="Full Name"
+              placeholder="Your name"
+              error={profileForm.formState.errors.name?.message}
+              {...profileForm.register("name")}
+            />
+            <Input
+              label="Email"
+              type="email"
+              placeholder="you@example.com"
+              error={profileForm.formState.errors.email?.message}
+              {...profileForm.register("email")}
+            />
+            <Button type="submit" loading={profileForm.formState.isSubmitting} className="w-full">
+              Save Changes
+            </Button>
+          </form>
         </Card>
 
         <Card>
@@ -148,53 +105,33 @@ export default function SettingsPage() {
             </span>
             <h3 className="font-display font-semibold text-white">Security</h3>
           </div>
-          <Formik
-            initialValues={{ currentPassword: "", newPassword: "", confirmPassword: "" }}
-            validationSchema={securityValidation}
-            onSubmit={onSecurity}
-          >
-            {({ isSubmitting }) => (
-              <Form noValidate className="space-y-4">
-                <Field name="currentPassword">
-                  {({ field, meta }: { field: FieldInputProps<string>; meta: FieldMetaProps<string> }) => (
-                    <Input
-                      label="Current Password"
-                      type="password"
-                      placeholder="••••••••"
-                      error={meta.touched && meta.error ? meta.error : undefined}
-                      {...field}
-                    />
-                  )}
-                </Field>
-                <Field name="newPassword">
-                  {({ field, meta }: { field: FieldInputProps<string>; meta: FieldMetaProps<string> }) => (
-                    <Input
-                      label="New Password"
-                      type="password"
-                      placeholder="••••••••"
-                      hint="At least 8 characters with one uppercase, one lowercase, one number and one special character."
-                      error={meta.touched && meta.error ? meta.error : undefined}
-                      {...field}
-                    />
-                  )}
-                </Field>
-                <Field name="confirmPassword">
-                  {({ field, meta }: { field: FieldInputProps<string>; meta: FieldMetaProps<string> }) => (
-                    <Input
-                      label="Confirm New Password"
-                      type="password"
-                      placeholder="••••••••"
-                      error={meta.touched && meta.error ? meta.error : undefined}
-                      {...field}
-                    />
-                  )}
-                </Field>
-                <Button type="submit" loading={isSubmitting} className="w-full">
-                  Save Changes
-                </Button>
-              </Form>
-            )}
-          </Formik>
+          <form noValidate onSubmit={onSecurity} className="space-y-4">
+            <Input
+              label="Current Password"
+              type="password"
+              placeholder="••••••••"
+              error={securityForm.formState.errors.currentPassword?.message}
+              {...securityForm.register("currentPassword")}
+            />
+            <Input
+              label="New Password"
+              type="password"
+              placeholder="••••••••"
+              hint="At least 8 characters with one uppercase, one lowercase, one number and one special character."
+              error={securityForm.formState.errors.newPassword?.message}
+              {...securityForm.register("newPassword")}
+            />
+            <Input
+              label="Confirm New Password"
+              type="password"
+              placeholder="••••••••"
+              error={securityForm.formState.errors.confirmPassword?.message}
+              {...securityForm.register("confirmPassword")}
+            />
+            <Button type="submit" loading={securityForm.formState.isSubmitting} className="w-full">
+              Save Changes
+            </Button>
+          </form>
         </Card>
 
         <Card className="md:col-span-2">
@@ -208,7 +145,7 @@ export default function SettingsPage() {
             <Logo compact />
             <div>
               <p className="font-display font-bold text-white">Teacher Assistant</p>
-              <p className="text-xs text-white/45">v1.0.0</p>
+              <p className="text-xs text-white/45">v2.0.0</p>
             </div>
           </div>
           <p className="text-sm text-white/60">

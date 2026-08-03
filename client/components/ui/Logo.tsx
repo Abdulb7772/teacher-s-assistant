@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Logo({
   to = "/",
@@ -12,8 +13,14 @@ export default function Logo({
   return (
     <Link href={to} className={`group flex items-center gap-3 ${className}`}>
       <span className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-gold-gradient shadow-glow transition-transform duration-300 group-hover:scale-105">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.png" alt="Teacher Assistant logo" className="h-7 w-7 object-contain drop-shadow" />
+        <Image
+          src="/logo.png"
+          alt="Teacher Assistant logo"
+          width={28}
+          height={28}
+          className="object-contain drop-shadow"
+          priority
+        />
       </span>
       {!compact && (
         <span className="flex flex-col leading-none">

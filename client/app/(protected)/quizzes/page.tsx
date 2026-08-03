@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Form, Formik, Field, type FieldInputProps, type FieldMetaProps } from "formik";
-import * as Yup from "yup";
 import toast from "react-hot-toast";
 import { BookOpen, FileDown, GraduationCap, Plus, Users } from "lucide-react";
 import Button from "@/components/ui/Button";
@@ -20,27 +20,15 @@ import Textarea from "@/components/ui/Textarea";
 import useKeyShortcut from "@/hooks/useKeyShortcut";
 import { exportPDF, type ExportColumn } from "@/lib/exportUtils";
 import { percentageOf } from "@/lib/grades";
-import type { Quiz, StudentPerformance } from "@/lib/types";
+import type { Quiz, StudentPerformance } from "@/types";
 import * as quizService from "@/services/quizService";
 import type { QuizColumnPayload, QuizPayload } from "@/services/quizService";
 import * as studentService from "@/services/studentService";
-import * as subjectService from "@/services/subjectService";
-import * as classService from "@/services/classService";
+import { useSubjectsQuery, useClassesQuery } from "@/features/meta/useMetaQueries";
+import { quizCellSchema, quizColumnSchema, type QuizCellFormValues, type QuizColumnFormValues } from "@/features/forms/schemas";
 
 // Client-side page size: keeps the marks grid bounded regardless of class size.
 const GRID_PAGE_SIZE = 50;
-
-interface ColumnFormValues {
-  quizName: string;
-  totalMarks: string;
-  date: string;
-}
-
-interface CellFormValues {
-  obtainedMarks: string;
-  totalMarks: string;
-  remarks: string;
-}
 
 interface CellTarget {
   student: StudentPerformance;
@@ -51,29 +39,6 @@ interface CellTarget {
 
 const today = (): string => new Date().toLocaleDateString("en-CA");
 
-const DEFAULT_COLUMN: ColumnFormValues = { quizName: "", totalMarks: "", date: today() };
-
-const columnValidation = Yup.object({
-  quizName: Yup.string().required("Quiz name is required"),
-  totalMarks: Yup.number()
-    .typeError("Total marks is required")
-    .required("Total marks is required")
-    .min(1, "Must be at least 1"),
-  date: Yup.string().required("Date is required"),
-});
-
-const cellValidation = Yup.object({
-  obtainedMarks: Yup.number()
-    .typeError("Obtained marks is required")
-    .required("Obtained marks is required")
-    .min(0, "Cannot be negative"),
-  totalMarks: Yup.number()
-    .typeError("Total marks is required")
-    .required("Total marks is required")
-    .min(1, "Must be at least 1"),
-  remarks: Yup.string(),
-});
-
 export default function QuizzesPage() {
   const queryClient = useQueryClient();
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
@@ -82,9 +47,9 @@ export default function QuizzesPage() {
   const [columnModalOpen, setColumnModalOpen] = useState(false);
   const [cellTarget, setCellTarget] = useState<CellTarget | null>(null);
 
-  const subjectsQuery = useQuery({ queryKey: ["subjects"], queryFn: subjectService.getSubjects });
+  const subjectsQuery = useSubjectsQuery();
+  const classesQuery = useClassesQuery();
   const subjects = subjectsQuery.data?.data ?? [];
-  const classesQuery = useQuery({ queryKey: ["classes"], queryFn: classService.getClasses });
   const classes = classesQuery.data?.data ?? [];
 
   const selectionReady = Boolean(selectedSubject && selectedClass);
@@ -93,8 +58,8 @@ export default function QuizzesPage() {
     queryKey: ["students", selectedClass],
     queryFn: () => studentService.getStudents({ class: selectedClass as string, page: 1, limit: 1000 }),
     enabled: selectionReady,
+    staleTime: 60 * 1000,
   });
-  const students = studentsQuery.data?.data ?? [];
 
   const quizzesQuery = useQuery({
     queryKey: ["quizzes", selectedClass, selectedSubject],
@@ -106,8 +71,10 @@ export default function QuizzesPage() {
         limit: 1000,
       }),
     enabled: selectionReady,
+    staleTime: 60 * 1000,
   });
-  const quizzes = quizzesQuery.data?.data ?? [];
+
+  const students = studentsQuery.data?.data ?? [];
 
   const visibleStudents = students.slice((gridPage - 1) * GRID_PAGE_SIZE, gridPage * GRID_PAGE_SIZE);
   const gridPagination = {
@@ -118,8 +85,9 @@ export default function QuizzesPage() {
   };
 
   const quizColumns = useMemo(() => {
+    const quizzesData = quizzesQuery.data?.data ?? [];
     const byName = new Map<string, Quiz[]>();
-    quizzes.forEach((q) => {
+    quizzesData.forEach((q) => {
       const arr = byName.get(q.quizName) ?? [];
       arr.push(q);
       byName.set(q.quizName, arr);
@@ -131,12 +99,12 @@ export default function QuizzesPage() {
         firstDate: Math.min(...records.map((r) => new Date(r.date).getTime())),
       }))
       .sort((a, b) => a.firstDate - b.firstDate);
-  }, [quizzes]);
+  }, [quizzesQuery.data]);
 
   const quizFor = useCallback(
     (studentId: string, quizName: string): Quiz | undefined =>
-      quizzes.find((q) => q.studentId === studentId && q.quizName === quizName),
-    [quizzes]
+      (quizzesQuery.data?.data ?? []).find((q) => q.studentId === studentId && q.quizName === quizName),
+    [quizzesQuery.data]
   );
 
   const invalidate = useCallback(() => {
@@ -149,10 +117,11 @@ export default function QuizzesPage() {
   // Exports ALL records for the selected subject + class (every student × every quiz column),
   // not just the current grid page.
   const exportPDFAll = useCallback(async (): Promise<void> => {
-    if (!selectionReady || students.length === 0) return;
+    const studentsData = studentsQuery.data?.data ?? [];
+    if (!selectionReady || studentsData.length === 0) return;
     setExporting(true);
     try {
-      const rows = students.map((s) => ({
+      const rows = studentsData.map((s) => ({
         name: s.name,
         cells: quizColumns.map((c) => {
           const q = quizFor(s._id, c.name);
@@ -181,7 +150,7 @@ export default function QuizzesPage() {
     } finally {
       setExporting(false);
     }
-  }, [selectionReady, students, quizColumns, quizFor, selectedSubject, selectedClass]);
+  }, [selectionReady, studentsQuery.data, quizColumns, quizFor, selectedSubject, selectedClass]);
 
   const openColumnModal = useCallback(() => {
     setColumnModalOpen(true);
@@ -200,10 +169,12 @@ export default function QuizzesPage() {
     onError: (err) => toast.error(err.message),
   });
 
-  const onColumnSubmit = async (
-    values: ColumnFormValues,
-    { setSubmitting }: { setSubmitting: (isSubmitting: boolean) => void }
-  ): Promise<void> => {
+  const columnForm = useForm<QuizColumnFormValues>({
+    resolver: zodResolver(quizColumnSchema),
+    defaultValues: { quizName: "", totalMarks: "", date: today() },
+  });
+
+  const onColumnSubmit = columnForm.handleSubmit(async (values) => {
     if (!selectionReady) return;
     try {
       await columnMutation.mutateAsync({
@@ -213,12 +184,11 @@ export default function QuizzesPage() {
         totalMarks: Number(values.totalMarks),
         date: values.date,
       });
+      columnForm.reset({ quizName: "", totalMarks: "", date: today() });
     } catch {
       /* toast shown by mutation onError */
-    } finally {
-      setSubmitting(false);
     }
-  };
+  });
 
   const openCell = useCallback(
     (student: StudentPerformance, column: { name: string; total: number }) => {
@@ -241,10 +211,25 @@ export default function QuizzesPage() {
     onError: (err) => toast.error(err.message),
   });
 
-  const onCellSubmit = async (
-    values: CellFormValues,
-    { setSubmitting }: { setSubmitting: (isSubmitting: boolean) => void }
-  ): Promise<void> => {
+  const cellForm = useForm<QuizCellFormValues>({
+    resolver: zodResolver(quizCellSchema),
+    defaultValues: { obtainedMarks: "0", totalMarks: "10", remarks: "" },
+  });
+
+  const openCellModal = useCallback(
+    (student: StudentPerformance, column: { name: string; total: number }) => {
+      openCell(student, column);
+      const quiz = quizFor(student._id, column.name) ?? null;
+      cellForm.reset({
+        obtainedMarks: quiz ? String(quiz.obtainedMarks) : "0",
+        totalMarks: String(quiz?.totalMarks ?? column.total ?? 10),
+        remarks: quiz?.remarks ?? "",
+      });
+    },
+    [openCell, quizFor, cellForm]
+  );
+
+  const onCellSubmit = cellForm.handleSubmit(async (values) => {
     if (!cellTarget) return;
     try {
       await saveCellMutation.mutateAsync({
@@ -259,10 +244,8 @@ export default function QuizzesPage() {
       });
     } catch {
       /* toast shown by mutation onError */
-    } finally {
-      setSubmitting(false);
     }
-  };
+  });
 
   const loading = studentsQuery.isPending || quizzesQuery.isPending;
 
@@ -408,7 +391,7 @@ export default function QuizzesPage() {
                       return (
                         <td key={col.name} className="px-4 py-2.5 text-center">
                           <button
-                            onClick={() => openCell(s, col)}
+                            onClick={() => openCellModal(s, col)}
                             className={`min-w-[56px] rounded-lg px-2 py-1.5 text-sm font-semibold transition-colors ${
                               quiz
                                 ? "text-white hover:bg-gold/15"
@@ -453,57 +436,41 @@ export default function QuizzesPage() {
         subtitle={`Create a new marks column for ${selectedSubject ?? ""} · ${selectedClass ?? ""}`}
         size="md"
       >
-        <Formik initialValues={DEFAULT_COLUMN} validationSchema={columnValidation} onSubmit={onColumnSubmit}>
-          {() => (
-            <Form noValidate className="space-y-4">
-              <Field name="quizName">
-                {({ field, meta }: { field: FieldInputProps<string>; meta: FieldMetaProps<string> }) => (
-                  <Input
-                    label="Quiz / Paper Name"
-                    placeholder="e.g. Quiz 1 - Algebra"
-                    error={meta.touched && meta.error ? meta.error : undefined}
-                    {...field}
-                  />
-                )}
-              </Field>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field name="totalMarks">
-                  {({ field, meta }: { field: FieldInputProps<string>; meta: FieldMetaProps<string> }) => (
-                    <Input
-                      label="Total Marks"
-                      type="number"
-                      min={1}
-                      placeholder="10"
-                      error={meta.touched && meta.error ? meta.error : undefined}
-                      {...field}
-                    />
-                  )}
-                </Field>
-                <Field name="date">
-                  {({ field, meta }: { field: FieldInputProps<string>; meta: FieldMetaProps<string> }) => (
-                    <Input
-                      label="Date"
-                      type="date"
-                      error={meta.touched && meta.error ? meta.error : undefined}
-                      {...field}
-                    />
-                  )}
-                </Field>
-              </div>
-              <p className="text-xs text-white/40">
-                A column is added for every student in {selectedClass ?? ""}. Click each cell afterwards to enter marks.
-              </p>
-              <div className="flex justify-end gap-3 pt-2">
-                <Button variant="ghost" onClick={() => setColumnModalOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" loading={columnMutation.isPending}>
-                  Add Column
-                </Button>
-              </div>
-            </Form>
-          )}
-        </Formik>
+        <form noValidate onSubmit={onColumnSubmit} className="space-y-4">
+          <Input
+            label="Quiz / Paper Name"
+            placeholder="e.g. Quiz 1 - Algebra"
+            error={columnForm.formState.errors.quizName?.message}
+            {...columnForm.register("quizName")}
+          />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Input
+              label="Total Marks"
+              type="number"
+              min={1}
+              placeholder="10"
+              error={columnForm.formState.errors.totalMarks?.message}
+              {...columnForm.register("totalMarks")}
+            />
+            <Input
+              label="Date"
+              type="date"
+              error={columnForm.formState.errors.date?.message}
+              {...columnForm.register("date")}
+            />
+          </div>
+          <p className="text-xs text-white/40">
+            A column is added for every student in {selectedClass ?? ""}. Click each cell afterwards to enter marks.
+          </p>
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="ghost" onClick={() => setColumnModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={columnMutation.isPending}>
+              Add Column
+            </Button>
+          </div>
+        </form>
       </Modal>
 
       <Modal
@@ -513,70 +480,46 @@ export default function QuizzesPage() {
         subtitle={`${cellTarget?.student.name ?? ""} · ${cellTarget?.quizName ?? ""}`}
         size="md"
       >
-        <Formik
-          initialValues={{
-            obtainedMarks: cellTarget?.quiz ? String(cellTarget.quiz.obtainedMarks) : "0",
-            totalMarks: String(cellTarget?.quiz?.totalMarks ?? cellTarget?.total ?? 10),
-            remarks: cellTarget?.quiz?.remarks ?? "",
-          }}
-          validationSchema={cellValidation}
-          onSubmit={onCellSubmit}
-        >
-          {() => (
-            <Form noValidate className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field name="obtainedMarks">
-                  {({ field, meta }: { field: FieldInputProps<string>; meta: FieldMetaProps<string> }) => (
-                    <Input
-                      label="Obtained Marks"
-                      type="number"
-                      min={0}
-                      placeholder="0"
-                      error={meta.touched && meta.error ? meta.error : undefined}
-                      {...field}
-                    />
-                  )}
-                </Field>
-                <Field name="totalMarks">
-                  {({ field, meta }: { field: FieldInputProps<string>; meta: FieldMetaProps<string> }) => (
-                    <Input
-                      label="Total Marks"
-                      type="number"
-                      min={1}
-                      placeholder="10"
-                      error={meta.touched && meta.error ? meta.error : undefined}
-                      {...field}
-                    />
-                  )}
-                </Field>
-              </div>
-              <Field name="remarks">
-                {({ field, meta }: { field: FieldInputProps<string>; meta: FieldMetaProps<string> }) => (
-                  <Textarea
-                    label="Remarks"
-                    placeholder="Optional remarks"
-                    rows={2}
-                    error={meta.touched && meta.error ? meta.error : undefined}
-                    {...field}
-                  />
-                )}
-              </Field>
-              {cellTarget?.quiz && (
-                <p className="text-xs text-white/40">
-                  Current: {percentageOf(cellTarget.quiz.obtainedMarks, cellTarget.quiz.totalMarks)}%
-                </p>
-              )}
-              <div className="flex justify-end gap-3 pt-2">
-                <Button variant="ghost" onClick={() => setCellTarget(null)}>
-                  Cancel
-                </Button>
-                <Button type="submit" loading={saveCellMutation.isPending}>
-                  {cellTarget?.quiz ? "Save Changes" : "Save Marks"}
-                </Button>
-              </div>
-            </Form>
+        <form noValidate onSubmit={onCellSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Input
+              label="Obtained Marks"
+              type="number"
+              min={0}
+              placeholder="0"
+              error={cellForm.formState.errors.obtainedMarks?.message}
+              {...cellForm.register("obtainedMarks")}
+            />
+            <Input
+              label="Total Marks"
+              type="number"
+              min={1}
+              placeholder="10"
+              error={cellForm.formState.errors.totalMarks?.message}
+              {...cellForm.register("totalMarks")}
+            />
+          </div>
+          <Textarea
+            label="Remarks"
+            placeholder="Optional remarks"
+            rows={2}
+            error={cellForm.formState.errors.remarks?.message}
+            {...cellForm.register("remarks")}
+          />
+          {cellTarget?.quiz && (
+            <p className="text-xs text-white/40">
+              Current: {percentageOf(cellTarget.quiz.obtainedMarks, cellTarget.quiz.totalMarks)}%
+            </p>
           )}
-        </Formik>
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="ghost" onClick={() => setCellTarget(null)}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={saveCellMutation.isPending}>
+              {cellTarget?.quiz ? "Save Changes" : "Save Marks"}
+            </Button>
+          </div>
+        </form>
       </Modal>
 
       {selectionReady && <FAB icon={Plus} label="Add Quiz / Paper" onClick={openColumnModal} shortcut="n" />}

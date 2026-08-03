@@ -2,7 +2,7 @@
 
 import { AlertCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { InputHTMLAttributes, ReactNode } from "react";
+import type { InputHTMLAttributes } from "react";
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;

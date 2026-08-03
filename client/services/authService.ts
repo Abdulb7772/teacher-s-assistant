@@ -1,5 +1,5 @@
 import api from "./api";
-import type { Pagination } from "@/lib/types";
+import type { Pagination } from "@/types";
 
 export interface User {
   id: string;

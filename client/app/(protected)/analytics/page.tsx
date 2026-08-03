@@ -1,6 +1,5 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import {
   BarChart3,
   BookOpen,
@@ -39,7 +38,7 @@ import ProgressBar from "@/components/ui/ProgressBar";
 import Skeleton, { SkeletonCards } from "@/components/ui/Skeleton";
 import StatCard from "@/components/ui/StatCard";
 import { shortMonth } from "@/lib/formatters";
-import * as analyticsService from "@/services/analyticsService";
+import { useAnalyticsQuery } from "@/features/analytics/useAnalyticsQuery";
 
 const TOOLTIP_STYLE = {
   background: "#102C57",
@@ -65,13 +64,7 @@ const gradeColor = (grade: string): string =>
   /^A/.test(grade) ? "#22C55E" : /^[BC]/.test(grade) ? "#D4AF37" : "#EF4444";
 
 export default function AnalyticsPage() {
-  const { data, isPending, isError, refetch } = useQuery({
-    queryKey: ["analytics"],
-    queryFn: analyticsService.getAnalytics,
-    // Same key + options as dashboard: one shared cache, instant cross-page nav.
-    staleTime: 5 * 60 * 1000,
-    placeholderData: (prev) => prev,
-  });
+  const { data, isPending, isError, refetch } = useAnalyticsQuery();
   const analytics = data?.data;
 
   const header = (
