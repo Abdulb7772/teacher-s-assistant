@@ -8,6 +8,7 @@ export interface StudentPerformanceBase {
   registrationNumber?: string;
   email?: string;
   class?: string;
+  subject?: string;
   createdAt?: Date;
   updatedAt?: Date;
   quizCount: number;
@@ -35,6 +36,7 @@ export const studentPerformanceAggregation = (): PipelineStage[] => [
       registrationNumber: 1,
       email: 1,
       class: 1,
+      subject: 1,
       createdAt: 1,
       updatedAt: 1,
       quizCount: { $size: "$quizzes" },

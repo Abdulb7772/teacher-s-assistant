@@ -16,6 +16,8 @@ router
   .put(protect, adminOnly, courseIdParam, courseValidators, validate, updateCourse)
   .delete(protect, adminOnly, courseIdParam, validate, deleteCourse);
 
-router.patch("/:id/status", protect, adminOnly, courseIdParam, statusValidator, validate, updateStatus);
+// Status toggling is open to any authenticated user (admin + employee);
+// create/edit/delete remain admin-only.
+router.patch("/:id/status", protect, courseIdParam, statusValidator, validate, updateStatus);
 
 export default router;

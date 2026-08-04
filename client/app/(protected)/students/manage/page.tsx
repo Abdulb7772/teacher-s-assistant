@@ -26,7 +26,7 @@ import usePaginatedQuery from "@/hooks/usePaginatedQuery";
 import type { StudentPerformance } from "@/types";
 import * as studentService from "@/services/studentService";
 import type { StudentPayload } from "@/services/studentService";
-import { useClassesQuery } from "@/features/meta/useMetaQueries";
+import { useClassesQuery, useSubjectsQuery } from "@/features/meta/useMetaQueries";
 import { studentFormSchema, type StudentFormValues } from "@/features/forms/schemas";
 
 export default function ManageStudentsPage() {
@@ -36,6 +36,7 @@ export default function ManageStudentsPage() {
     });
 
   const classesQuery = useClassesQuery();
+  const subjectsQuery = useSubjectsQuery();
 
   const classOptions = useMemo(
     () => [
@@ -44,9 +45,20 @@ export default function ManageStudentsPage() {
     ],
     [classesQuery.data]
   );
+  const subjectOptions = useMemo(
+    () => [
+      { value: "", label: "All Subjects" },
+      ...(subjectsQuery.data?.data ?? []).map((s) => ({ value: s.name, label: s.name })),
+    ],
+    [subjectsQuery.data]
+  );
   const classFormOptions = useMemo(
     () => (classesQuery.data?.data ?? []).map((c) => ({ value: c.name, label: c.name })),
     [classesQuery.data]
+  );
+  const subjectFormOptions = useMemo(
+    () => (subjectsQuery.data?.data ?? []).map((s) => ({ value: s.name, label: s.name })),
+    [subjectsQuery.data]
   );
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -56,7 +68,7 @@ export default function ManageStudentsPage() {
 
   const form = useForm<StudentFormValues>({
     resolver: zodResolver(studentFormSchema),
-    defaultValues: { name: "", className: "" },
+    defaultValues: { name: "", className: "", subjectName: "" },
   });
 
   const closeModal = useCallback(() => {
@@ -73,7 +85,7 @@ export default function ManageStudentsPage() {
   const openEdit = useCallback(
     (student: StudentPerformance) => {
       setEditing(student);
-      form.reset({ name: student.name, className: student.class ?? "" });
+      form.reset({ name: student.name, className: student.class ?? "", subjectName: student.subject ?? "" });
       setModalOpen(true);
     },
     [form]
@@ -116,6 +128,7 @@ export default function ManageStudentsPage() {
     const payload: StudentPayload = {
       name: values.name.trim(),
       class: values.className,
+      subject: values.subjectName,
     };
     try {
       if (editing) {
@@ -145,6 +158,7 @@ export default function ManageStudentsPage() {
       },
     },
     { accessorKey: "class", header: "Class", cell: (info) => info.row.original.class || "—" },
+    { accessorKey: "subject", header: "Subject", cell: (info) => info.row.original.subject || "—" },
     { accessorKey: "quizCount", header: "Quizzes" },
     { accessorKey: "average", header: "Average" },
     {
@@ -191,20 +205,26 @@ export default function ManageStudentsPage() {
         breadcrumbs={[{ label: "Dashboard", to: "/dashboard" }, { label: "Students" }]}
       />
 
-      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center">
+      <div className="mb-5 flex flex-wrap items-center gap-3 xl:flex-nowrap">
         <SearchInput
           value={searchInput}
           onChange={setSearchInput}
           placeholder="Search students..."
           shortcut="/"
           inputRef={searchRef}
-          className="w-full lg:w-64"
+          className="w-full lg:w-64 xl:w-64"
         />
         <Select
           options={classOptions}
           value={String(params.class ?? "")}
           onChange={(e) => setFilter("class", e.target.value)}
-          className="w-full lg:w-44"
+          className="w-full lg:w-44 xl:w-44"
+        />
+        <Select
+          options={subjectOptions}
+          value={String(params.subject ?? "")}
+          onChange={(e) => setFilter("subject", e.target.value)}
+          className="w-full lg:w-44 xl:w-44"
         />
       </div>
 
@@ -244,6 +264,12 @@ export default function ManageStudentsPage() {
             options={classFormOptions}
             error={form.formState.errors.className?.message}
             {...form.register("className")}
+          />
+          <Select
+            label="Subject"
+            options={subjectFormOptions}
+            error={form.formState.errors.subjectName?.message}
+            {...form.register("subjectName")}
           />
           <div className="flex justify-end gap-3 pt-2">
             <Button variant="ghost" onClick={closeModal}>

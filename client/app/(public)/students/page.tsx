@@ -116,19 +116,19 @@ export default function StudentsPage() {
         </Alert>
       )}
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="mb-4 flex flex-wrap items-center gap-3 xl:flex-nowrap">
         <SearchInput
           value={searchInput}
           onChange={setSearchInput}
           placeholder="Search students..."
-          className="w-full sm:w-64"
+          className="w-full sm:w-64 xl:w-64"
         />
         <Select
           aria-label="Filter by class"
           options={classOptions}
           value={String(params.class ?? "")}
           onChange={(e) => setFilter("class", e.target.value)}
-          className="w-full sm:w-44"
+          className="w-full sm:w-44 xl:w-44"
         />
       </div>
 

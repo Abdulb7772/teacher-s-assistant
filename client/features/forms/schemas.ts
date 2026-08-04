@@ -3,6 +3,7 @@ import { z } from "zod";
 export const studentFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   className: z.string(),
+  subjectName: z.string(),
 });
 
 export type StudentFormValues = z.infer<typeof studentFormSchema>;

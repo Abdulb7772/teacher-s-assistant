@@ -6,6 +6,7 @@ export interface IStudent extends Document {
   registrationNumber?: string;
   email?: string;
   class?: string;
+  subject?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -24,6 +25,7 @@ const studentSchema = new Schema<IStudent>(
     registrationNumber: { type: String, trim: true, unique: true, sparse: true, index: true },
     email: { type: String, trim: true, lowercase: true, match: [/^\S+@\S+\.\S+$/, "Please provide a valid email"] },
     class: { type: String, trim: true, index: true },
+    subject: { type: String, trim: true, index: true },
   },
   { timestamps: true }
 );

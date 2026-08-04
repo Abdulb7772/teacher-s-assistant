@@ -35,10 +35,10 @@ export default function CourseOutlinePage() {
     ],
     [subjectsQuery.data]
   );
-  const classOptions = useMemo(
+   const classOptions = useMemo(
     () => [
       { value: "", label: "All Classes" },
-      ...(classesQuery.data?.data ?? []).map((c) => ({ value: c.name, label: c.name })),
+      ...(classesQuery.data?.data ?? []).map((s) => ({ value: s.name, label: s.name })),
     ],
     [classesQuery.data]
   );
@@ -141,13 +141,13 @@ export default function CourseOutlinePage() {
         </Alert>
       )}
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="mb-4 flex flex-wrap items-center gap-3 xl:flex-nowrap">
         <SearchInput
           value={searchInput}
           onChange={setSearchInput}
           placeholder="Search topics..."
           shortcut="/"
-          className="w-full sm:w-64"
+          className="w-full sm:w-64 xl:w-64"
           inputRef={searchRef}
         />
         <Select
@@ -155,35 +155,35 @@ export default function CourseOutlinePage() {
           options={subjectOptions}
           value={String(params.subject ?? "")}
           onChange={(e) => setFilter("subject", e.target.value)}
-          className="w-full sm:w-40"
+          className="w-full sm:w-40 xl:w-40"
         />
         <Select
           aria-label="Filter by class"
           options={classOptions}
           value={String(params.class ?? "")}
           onChange={(e) => setFilter("class", e.target.value)}
-          className="w-full sm:w-40"
+          className="w-full sm:w-40 xl:w-40"
         />
         <Select
           aria-label="Filter by month"
           options={MONTH_OPTIONS}
           value={String(params.month ?? "")}
           onChange={(e) => setFilter("month", e.target.value)}
-          className="w-full sm:w-40"
+          className="w-full sm:w-40 xl:w-40"
         />
         <Select
           aria-label="Filter by week"
           options={WEEK_OPTIONS}
           value={String(params.week ?? "")}
           onChange={(e) => setFilter("week", e.target.value)}
-          className="w-full sm:w-40"
+          className="w-full sm:w-40 xl:w-40"
         />
         <Select
           aria-label="Filter by status"
           options={STATUS_OPTIONS}
           value={String(params.status ?? "")}
           onChange={(e) => setFilter("status", e.target.value)}
-          className="w-full sm:w-40"
+          className="w-full sm:w-40 xl:w-40"
         />
       </div>
 

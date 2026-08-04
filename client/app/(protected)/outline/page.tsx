@@ -277,16 +277,30 @@ export default function OutlinePage() {
     {
       accessorKey: "status",
       header: "Status",
-      cell: (info) =>
-        info.row.original.status === "completed" ? (
-          <Badge variant="success">
-            <CheckCircle2 size={12} /> Completed
-          </Badge>
-        ) : (
-          <Badge variant="neutral">
-            <Clock size={12} /> Pending
-          </Badge>
-        ),
+      cell: (info) => {
+        const row = info.row.original;
+        const completed = row.status === "completed";
+        return (
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`px-2 py-1 ${completed ? "text-success" : "text-white/60"}`}
+            onClick={() => statusMutation.mutate({ id: row._id, status: completed ? "pending" : "completed" })}
+            title={completed ? "Click to revert to pending" : "Click to mark as completed"}
+            loading={statusMutation.isPending && statusMutation.variables?.id === row._id}
+          >
+            {completed ? (
+              <Badge variant="success">
+                <CheckCircle2 size={12} /> Completed
+              </Badge>
+            ) : (
+              <Badge variant="neutral">
+                <Clock size={12} /> Pending
+              </Badge>
+            )}
+          </Button>
+        );
+      },
     },
     {
       accessorKey: "completionDate",
@@ -351,44 +365,44 @@ export default function OutlinePage() {
         }
       />
 
-      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center">
+      <div className="mb-5 flex flex-wrap items-center gap-3 xl:flex-nowrap">
         <SearchInput
           value={searchInput}
           onChange={setSearchInput}
           placeholder="Search topics..."
           shortcut="/"
           inputRef={searchRef}
-          className="w-full lg:w-64"
+          className="w-full lg:w-64 xl:w-64"
         />
         <Select
           options={subjectOptions}
           value={String(params.subject ?? "")}
           onChange={(e) => setFilter("subject", e.target.value)}
-          className="w-full lg:w-44"
+          className="w-full lg:w-44 xl:w-44"
         />
         <Select
           options={classOptions}
           value={String(params.class ?? "")}
           onChange={(e) => setFilter("class", e.target.value)}
-          className="w-full lg:w-40"
+          className="w-full lg:w-40 xl:w-40"
         />
         <Select
           options={MONTH_OPTIONS}
           value={String(params.month ?? "")}
           onChange={(e) => setFilter("month", e.target.value)}
-          className="w-full lg:w-40"
+          className="w-full lg:w-40 xl:w-40"
         />
         <Select
           options={WEEK_OPTIONS}
           value={String(params.week ?? "")}
           onChange={(e) => setFilter("week", e.target.value)}
-          className="w-full lg:w-44"
+          className="w-full lg:w-44 xl:w-44"
         />
         <Select
           options={STATUS_OPTIONS}
           value={String(params.status ?? "")}
           onChange={(e) => setFilter("status", e.target.value)}
-          className="w-full lg:w-44"
+          className="w-full lg:w-44 xl:w-44"
         />
       </div>
 

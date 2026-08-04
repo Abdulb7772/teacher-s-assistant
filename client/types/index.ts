@@ -45,6 +45,7 @@ export interface Student {
   registrationNumber?: string;
   email?: string;
   class?: string;
+  subject?: string;
   createdAt: string;
 }
 
