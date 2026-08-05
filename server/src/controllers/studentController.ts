@@ -7,7 +7,7 @@ import { paginate } from "../services/courseService";
 import { studentPerformanceAggregation, decorateWithGrade, StudentPerformanceBase } from "../services/quizService";
 
 const buildFilters = (query: Record<string, string>): Record<string, unknown> => {
-  const { search, className, subject } = query;
+  const { search, class: className, subject } = query;
   const filter: Record<string, unknown> = {};
   if (className) filter.class = className;
   if (subject) filter.subject = subject;
