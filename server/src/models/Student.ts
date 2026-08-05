@@ -21,8 +21,8 @@ export interface StudentPerformance extends IStudent {
 const studentSchema = new Schema<IStudent>(
   {
     name: { type: String, required: [true, "Full name is required"], trim: true, maxlength: [80, "Name too long"] },
-    rollNumber: { type: String, trim: true, unique: true, sparse: true, index: true },
-    registrationNumber: { type: String, trim: true, unique: true, sparse: true, index: true },
+    rollNumber: { type: String, trim: true },
+    registrationNumber: { type: String, trim: true },
     email: { type: String, trim: true, lowercase: true, match: [/^\S+@\S+\.\S+$/, "Please provide a valid email"] },
     class: { type: String, trim: true, index: true },
     subject: { type: String, trim: true, index: true },
