@@ -7,6 +7,7 @@ export interface StudentFilters {
   search?: string;
   class?: string;
   subject?: string;
+  quizSubject?: string;
   sortBy?: string;
   sortOrder?: "asc" | "desc";
 }

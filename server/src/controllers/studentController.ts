@@ -25,10 +25,11 @@ const buildFilters = (query: Record<string, string>): Record<string, unknown> =>
 export const getStudents = asyncHandler(async (req: Request, res: Response) => {
   const { page, limit } = paginate(req.query.page as string, req.query.limit as string);
   const filter = buildFilters(req.query as Record<string, string>);
+  const quizSubject = (req.query.quizSubject as string) || undefined;
 
   const pipeline: Parameters<typeof Student.aggregate>[0] = [
     { $match: filter },
-    ...studentPerformanceAggregation(),
+    ...studentPerformanceAggregation(quizSubject),
     {
       $sort: {
         [req.query.sortBy === "percentage" ? "percentage" : "createdAt"]:

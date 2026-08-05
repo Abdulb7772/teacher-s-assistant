@@ -54,8 +54,14 @@ export default function QuizzesPage() {
   const selectionReady = Boolean(selectedSubject && selectedClass);
 
   const studentsQuery = useQuery({
-    queryKey: ["students", selectedClass],
-    queryFn: () => studentService.getStudents({ class: selectedClass as string, page: 1, limit: 1000 }),
+    queryKey: ["students", selectedClass, selectedSubject],
+    queryFn: () =>
+      studentService.getStudents({
+        class: selectedClass as string,
+        quizSubject: selectedSubject as string,
+        page: 1,
+        limit: 1000,
+      }),
     enabled: selectionReady,
     staleTime: 60 * 1000,
   });
@@ -107,7 +113,7 @@ export default function QuizzesPage() {
   );
 
   const invalidate = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ["students", selectedClass] });
+    queryClient.invalidateQueries({ queryKey: ["students", selectedClass, selectedSubject] });
     queryClient.invalidateQueries({ queryKey: ["quizzes", selectedClass, selectedSubject] });
   }, [queryClient, selectedClass, selectedSubject]);
 

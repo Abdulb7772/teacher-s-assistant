@@ -32,7 +32,11 @@ export const getQuizzes = asyncHandler(async (req: Request, res: Response) => {
 
   res.json({
     success: true,
-    data: quizzes.map((q) => ({ ...q, student: q.studentId })),
+    data: quizzes.map((q) => ({
+      ...q,
+      studentId: q.studentId?._id ?? q.studentId,
+      student: q.studentId,
+    })),
     summary,
     pagination: { page, limit, total, pages: Math.ceil(total / limit) },
   });

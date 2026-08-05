@@ -20,12 +20,13 @@ export interface StudentPerformance extends StudentPerformanceBase {
   grade: string;
 }
 
-export const studentPerformanceAggregation = (): PipelineStage[] => [
+export const studentPerformanceAggregation = (subject?: string): PipelineStage[] => [
   {
     $lookup: {
       from: "quizzes",
       localField: "_id",
       foreignField: "studentId",
+      pipeline: subject ? [{ $match: { subject } }] : [],
       as: "quizzes",
     },
   },
