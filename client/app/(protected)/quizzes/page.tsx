@@ -5,9 +5,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { BookOpen, FileDown, GraduationCap, Plus, Users } from "lucide-react";
+import { BookOpen, FileDown, GraduationCap, Plus, Trash2, Users } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import EmptyState from "@/components/ui/EmptyState";
 import FAB from "@/components/ui/FAB";
 import GradeBadge from "@/components/ui/GradeBadge";
@@ -16,25 +17,22 @@ import Modal from "@/components/ui/Modal";
 import PageHeader from "@/components/ui/PageHeader";
 import Pagination from "@/components/ui/Pagination";
 import { SkeletonRows } from "@/components/ui/Skeleton";
-import Textarea from "@/components/ui/Textarea";
 import useKeyShortcut from "@/hooks/useKeyShortcut";
 import { exportPDF, type ExportColumn } from "@/lib/exportUtils";
-import { percentageOf } from "@/lib/grades";
 import type { Quiz, StudentPerformance } from "@/types";
 import * as quizService from "@/services/quizService";
 import type { QuizColumnPayload, QuizPayload } from "@/services/quizService";
 import * as studentService from "@/services/studentService";
 import { useSubjectsQuery, useClassesQuery } from "@/features/meta/useMetaQueries";
-import { quizCellSchema, quizColumnSchema, type QuizCellFormValues, type QuizColumnFormValues } from "@/features/forms/schemas";
+import { quizColumnSchema, type QuizColumnFormValues } from "@/features/forms/schemas";
 
 // Client-side page size: keeps the marks grid bounded regardless of class size.
 const GRID_PAGE_SIZE = 50;
 
-interface CellTarget {
+interface EditingCell {
   student: StudentPerformance;
-  quizName: string;
-  quiz: Quiz | null;
-  total: number;
+  column: { name: string; total: number };
+  value: string;
 }
 
 const today = (): string => new Date().toLocaleDateString("en-CA");
@@ -45,7 +43,8 @@ export default function QuizzesPage() {
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [gridPage, setGridPage] = useState(1);
   const [columnModalOpen, setColumnModalOpen] = useState(false);
-  const [cellTarget, setCellTarget] = useState<CellTarget | null>(null);
+  const [columnToDelete, setColumnToDelete] = useState<{ name: string; total: number } | null>(null);
+  const [editing, setEditing] = useState<EditingCell | null>(null);
 
   const subjectsQuery = useSubjectsQuery();
   const classesQuery = useClassesQuery();
@@ -169,6 +168,21 @@ export default function QuizzesPage() {
     onError: (err) => toast.error(err.message),
   });
 
+  const deleteColumnMutation = useMutation({
+    mutationFn: (column: { name: string }) =>
+      quizService.deleteQuizColumn({
+        quizName: column.name,
+        subject: selectedSubject as string,
+        class: selectedClass as string,
+      }),
+    onSuccess: (res) => {
+      toast.success(`Deleted "${columnToDelete?.name}" — ${res.data?.deleted ?? 0} marks row(s) removed`);
+      setColumnToDelete(null);
+      invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   const columnForm = useForm<QuizColumnFormValues>({
     resolver: zodResolver(quizColumnSchema),
     defaultValues: { quizName: "", totalMarks: "", date: today() },
@@ -190,62 +204,51 @@ export default function QuizzesPage() {
     }
   });
 
-  const openCell = useCallback(
-    (student: StudentPerformance, column: { name: string; total: number }) => {
-      const quiz = quizFor(student._id, column.name) ?? null;
-      setCellTarget({ student, quizName: column.name, quiz, total: column.total });
-    },
-    [quizFor]
-  );
-
   const saveCellMutation = useMutation({
     mutationFn: (payload: QuizPayload) => {
-      if (!cellTarget?.quiz) return quizService.createQuiz(payload);
-      return quizService.updateQuiz(cellTarget.quiz._id, payload);
+      const quiz = quizFor(payload.studentId, payload.quizName);
+      return quiz ? quizService.updateQuiz(quiz._id, payload) : quizService.createQuiz(payload);
     },
     onSuccess: () => {
       toast.success("Marks saved");
-      setCellTarget(null);
       invalidate();
     },
     onError: (err) => toast.error(err.message),
   });
 
-  const cellForm = useForm<QuizCellFormValues>({
-    resolver: zodResolver(quizCellSchema),
-    defaultValues: { obtainedMarks: "0", totalMarks: "10", remarks: "" },
-  });
-
-  const openCellModal = useCallback(
+  const startEdit = useCallback(
     (student: StudentPerformance, column: { name: string; total: number }) => {
-      openCell(student, column);
-      const quiz = quizFor(student._id, column.name) ?? null;
-      cellForm.reset({
-        obtainedMarks: quiz ? String(quiz.obtainedMarks) : "0",
-        totalMarks: String(quiz?.totalMarks ?? column.total ?? 10),
-        remarks: quiz?.remarks ?? "",
-      });
+      const quiz = quizFor(student._id, column.name);
+      setEditing({ student, column, value: quiz ? String(quiz.obtainedMarks) : "" });
     },
-    [openCell, quizFor, cellForm]
+    [quizFor]
   );
 
-  const onCellSubmit = cellForm.handleSubmit(async (values) => {
-    if (!cellTarget) return;
-    try {
-      await saveCellMutation.mutateAsync({
-        studentId: cellTarget.student._id,
-        subject: selectedSubject ?? undefined,
-        class: selectedClass ?? undefined,
-        quizName: cellTarget.quizName,
-        totalMarks: Number(values.totalMarks),
-        obtainedMarks: Number(values.obtainedMarks),
-        date: cellTarget.quiz?.date.slice(0, 10) ?? today(),
-        remarks: values.remarks.trim(),
-      });
-    } catch {
-      /* toast shown by mutation onError */
+  const commitEdit = useCallback(() => {
+    if (!editing) return;
+    const marks = editing.value.trim();
+    const quiz = quizFor(editing.student._id, editing.column.name);
+    const obtained = Number(marks);
+    if (marks === "" || !Number.isFinite(obtained) || obtained < 0) {
+      setEditing(null);
+      return;
     }
-  });
+    if (quiz && Number(quiz.obtainedMarks) === obtained) {
+      setEditing(null);
+      return;
+    }
+    saveCellMutation.mutate({
+      studentId: editing.student._id,
+      subject: selectedSubject ?? undefined,
+      class: selectedClass ?? undefined,
+      quizName: editing.column.name,
+      totalMarks: editing.column.total,
+      obtainedMarks: obtained,
+      date: quiz?.date.slice(0, 10) ?? today(),
+      remarks: quiz?.remarks ?? "",
+    });
+    setEditing(null);
+  }, [editing, quizFor, saveCellMutation, selectedSubject, selectedClass]);
 
   const loading = studentsQuery.isPending || quizzesQuery.isPending;
 
@@ -371,8 +374,15 @@ export default function QuizzesPage() {
                       className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-gold/80"
                     >
                       {col.name}
-                      <span className="block text-[10px] font-normal normal-case text-white/35">
-                        out of {col.total}
+                      <span className="mt-1 flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-normal normal-case text-white/35">out of {col.total}</span>
+                        <button
+                          onClick={() => setColumnToDelete({ name: col.name, total: col.total })}
+                          className="rounded-md p-1 text-white/25 transition-colors hover:bg-danger/15 hover:text-red-400"
+                          title={`Delete ${col.name} column`}
+                        >
+                          <Trash2 size={13} />
+                        </button>
                       </span>
                     </th>
                   ))}
@@ -388,19 +398,39 @@ export default function QuizzesPage() {
                     </td>
                     {quizColumns.map((col) => {
                       const quiz = quizFor(s._id, col.name);
+                      const isEditing = editing?.student._id === s._id && editing?.column.name === col.name;
                       return (
                         <td key={col.name} className="px-4 py-2.5 text-center">
-                          <button
-                            onClick={() => openCellModal(s, col)}
-                            className={`min-w-[56px] rounded-lg px-2 py-1.5 text-sm font-semibold transition-colors ${
-                              quiz
-                                ? "text-white hover:bg-gold/15"
-                                : "text-white/25 hover:bg-gold/10 hover:text-gold"
-                            }`}
-                            title={quiz ? "Edit marks" : "Add marks"}
-                          >
-                            {quiz ? `${quiz.obtainedMarks}/${quiz.totalMarks}` : "—"}
-                          </button>
+                          {isEditing ? (
+                            <input
+                              autoFocus
+                              type="number"
+                              min={0}
+                              value={editing.value}
+                              onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+                              onBlur={commitEdit}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  e.currentTarget.blur();
+                                }
+                                if (e.key === "Escape") setEditing(null);
+                              }}
+                              className="w-20 rounded-lg border border-gold/50 bg-navy px-2 py-1.5 text-center text-sm font-semibold text-white outline-none focus:ring-2 focus:ring-gold/30"
+                            />
+                          ) : (
+                            <button
+                              onClick={() => startEdit(s, col)}
+                              className={`min-w-[56px] rounded-lg px-2 py-1.5 text-sm font-semibold transition-colors ${
+                                quiz
+                                  ? "text-white hover:bg-gold/15"
+                                  : "text-white/25 hover:bg-gold/10 hover:text-gold"
+                              }`}
+                              title={quiz ? "Edit marks" : "Add marks"}
+                            >
+                              {quiz ? `${quiz.obtainedMarks}/${quiz.totalMarks}` : "—"}
+                            </button>
+                          )}
                         </td>
                       );
                     })}
@@ -428,6 +458,16 @@ export default function QuizzesPage() {
           </div>
         </Card>
       )}
+
+      <ConfirmDialog
+        open={Boolean(columnToDelete)}
+        onClose={() => setColumnToDelete(null)}
+        onConfirm={() => columnToDelete && deleteColumnMutation.mutate(columnToDelete)}
+        loading={deleteColumnMutation.isPending}
+        title="Delete quiz column?"
+        message={`This permanently deletes "${columnToDelete?.name}" and all marks entered for every student in ${selectedClass} · ${selectedSubject}. This cannot be undone.`}
+        confirmText="Delete Column"
+      />
 
       <Modal
         open={columnModalOpen}
@@ -460,7 +500,7 @@ export default function QuizzesPage() {
             />
           </div>
           <p className="text-xs text-white/40">
-            A column is added for every student in {selectedClass ?? ""}. Click each cell afterwards to enter marks.
+            A column is added for every student in {selectedClass ?? ""}. Click a cell afterwards to enter marks directly.
           </p>
           <div className="flex justify-end gap-3 pt-2">
             <Button variant="ghost" onClick={() => setColumnModalOpen(false)}>
@@ -468,55 +508,6 @@ export default function QuizzesPage() {
             </Button>
             <Button type="submit" loading={columnMutation.isPending}>
               Add Column
-            </Button>
-          </div>
-        </form>
-      </Modal>
-
-      <Modal
-        open={Boolean(cellTarget)}
-        onClose={() => setCellTarget(null)}
-        title={cellTarget?.quiz ? "Edit Marks" : "Add Marks"}
-        subtitle={`${cellTarget?.student.name ?? ""} · ${cellTarget?.quizName ?? ""}`}
-        size="md"
-      >
-        <form noValidate onSubmit={onCellSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Input
-              label="Obtained Marks"
-              type="number"
-              min={0}
-              placeholder="0"
-              error={cellForm.formState.errors.obtainedMarks?.message}
-              {...cellForm.register("obtainedMarks")}
-            />
-            <Input
-              label="Total Marks"
-              type="number"
-              min={1}
-              placeholder="10"
-              error={cellForm.formState.errors.totalMarks?.message}
-              {...cellForm.register("totalMarks")}
-            />
-          </div>
-          <Textarea
-            label="Remarks"
-            placeholder="Optional remarks"
-            rows={2}
-            error={cellForm.formState.errors.remarks?.message}
-            {...cellForm.register("remarks")}
-          />
-          {cellTarget?.quiz && (
-            <p className="text-xs text-white/40">
-              Current: {percentageOf(cellTarget.quiz.obtainedMarks, cellTarget.quiz.totalMarks)}%
-            </p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <Button variant="ghost" onClick={() => setCellTarget(null)}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={saveCellMutation.isPending}>
-              {cellTarget?.quiz ? "Save Changes" : "Save Marks"}
             </Button>
           </div>
         </form>

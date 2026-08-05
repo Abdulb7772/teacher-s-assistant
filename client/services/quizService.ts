@@ -35,3 +35,12 @@ export const updateQuiz = (id: string, payload: QuizPayload): Promise<ApiRespons
   api.put(`/quizzes/${id}`, payload).then((r) => r.data);
 
 export const deleteQuiz = (id: string): Promise<ApiResponse<null>> => api.delete(`/quizzes/${id}`).then((r) => r.data);
+
+export interface QuizColumnDeletePayload {
+  quizName: string;
+  subject: string;
+  class: string;
+}
+
+export const deleteQuizColumn = (payload: QuizColumnDeletePayload): Promise<ApiResponse<{ deleted: number }>> =>
+  api.delete("/quizzes/column", { data: payload }).then((r) => r.data);

@@ -84,6 +84,13 @@ export const updateQuiz = asyncHandler(async (req: Request, res: Response) => {
   res.json({ success: true, message: "Quiz mark updated", data: quiz });
 });
 
+export const deleteQuizColumn = asyncHandler(async (req: Request, res: Response) => {
+  const { quizName, subject, class: className } = req.body as { quizName: string; subject: string; class: string };
+  const deleted = await Quiz.deleteMany({ quizName, subject, class: className });
+  if (!deleted.deletedCount) throw new ApiError(404, "Quiz column not found");
+  res.json({ success: true, message: "Quiz column deleted", data: { deleted: deleted.deletedCount } });
+});
+
 export const deleteQuiz = asyncHandler(async (req: Request, res: Response) => {
   const quiz = await Quiz.findByIdAndDelete(req.params.id);
   if (!quiz) throw new ApiError(404, "Quiz mark not found");

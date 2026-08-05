@@ -19,4 +19,10 @@ export const quizColumnValidators = [
   body("date").optional({ nullable: true }).isISO8601().withMessage("Invalid quiz date"),
 ];
 
+export const quizColumnDeleteValidators = [
+  body("quizName").trim().notEmpty().withMessage("Quiz name is required").isLength({ max: 120 }),
+  body("subject").trim().notEmpty().withMessage("Subject is required"),
+  body("class").trim().notEmpty().withMessage("Class is required"),
+];
+
 export const quizIdParam = [param("id").isMongoId().withMessage("Invalid quiz id")];
