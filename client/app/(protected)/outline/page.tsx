@@ -54,7 +54,7 @@ export default function OutlinePage() {
   const { user } = useAuth();
   const { data, pagination, loading, params, setFilter, refresh, searchInput, setSearchInput, search } =
     usePaginatedQuery<Course>(["courses"], courseService.getCourses, {
-      initialParams: { page: 1, limit: 10, sortBy: "lectureNumber", sortOrder: "asc" },
+      initialParams: { page: 1, limit: 10, sortBy: "month", sortOrder: "desc" },
     });
 
   // The most recent topic added by the current user, used to prefill the New Topic form.
@@ -66,7 +66,7 @@ export default function OutlinePage() {
   });
   const lastCourse = lastCourseQuery.data?.data?.[0];
 
-  const [sorting, setSorting] = useState<SortingState>([{ id: "lectureNumber", desc: false }]);
+  const [sorting, setSorting] = useState<SortingState>([{ id: "month", desc: true }]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Course | null>(null);
   const [deleting, setDeleting] = useState<Course | null>(null);
@@ -210,7 +210,7 @@ export default function OutlinePage() {
   const [exporting, setExporting] = useState(false);
 
   // Exports ALL topics matching the current filters (subject/class/month/week/status/search), not just the visible page.
-  // Sorted by week so the PDF groups week 1 first, then week 2, lectures ascending inside each week.
+  // Sorted by most recent month first, then week, then lecture number.
   const exportAllPDF = useCallback(async (): Promise<void> => {
     setExporting(true);
     try {
@@ -223,8 +223,8 @@ export default function OutlinePage() {
         month: params.month as string,
         week: params.week as string,
         status: params.status as string,
-        sortBy: "week",
-        sortOrder: "asc",
+        sortBy: "month",
+        sortOrder: "desc",
       });
       await exportPDF("Course Outline", EXPORT_COLUMNS, res.data, "course-outline");
     } catch (err) {

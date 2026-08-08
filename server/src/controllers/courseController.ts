@@ -2,17 +2,22 @@ import { Request, Response } from "express";
 import Course from "../models/Course";
 import ApiError from "../utils/ApiError";
 import asyncHandler from "../utils/asyncHandler";
-import { buildCourseFilters, courseSort, paginate } from "../services/courseService";
+import { buildCourseFilters, buildCourseMonthSortPipeline, courseSort, paginate } from "../services/courseService";
 
 export const getCourses = asyncHandler(async (req: Request, res: Response) => {
   const { page, limit } = paginate(req.query.page as string, req.query.limit as string);
   const filter = buildCourseFilters(req.query as Record<string, string>);
-  const sort = courseSort(req.query as Record<string, string>);
+  const sortParams = req.query as Record<string, string>;
+  const sort = courseSort(sortParams);
+  const sortBy = sortParams.sortBy;
 
-  const [data, total] = await Promise.all([
-    Course.find(filter).sort(sort).skip((page - 1) * limit).limit(limit).lean(),
-    Course.countDocuments(filter),
-  ]);
+  const [data, total] =
+    sortBy === "month"
+      ? await Promise.all([Course.aggregate(buildCourseMonthSortPipeline(filter, page, limit, sortParams.sortOrder)), Course.countDocuments(filter)])
+      : await Promise.all([
+          Course.find(filter).sort(sort).skip((page - 1) * limit).limit(limit).lean(),
+          Course.countDocuments(filter),
+        ]);
 
   res.json({ success: true, data, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
 });
