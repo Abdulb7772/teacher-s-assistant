@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import toast from "react-hot-toast";
 import { Check, CheckCircle2, Clock, FileDown, Pencil, Plus, RotateCcw, SearchX, Trash2, X } from "lucide-react";
@@ -29,6 +29,7 @@ import type { Course, CourseStatus } from "@/types";
 import * as courseService from "@/services/courseService";
 import type { CoursePayload } from "@/services/courseService";
 import { useSubjectsQuery, useClassesQuery } from "@/features/meta/useMetaQueries";
+import { useAuth } from "@/features/auth/AuthProvider";
 import {
   outlineFormSchema,
   MONTH_FORM_OPTIONS,
@@ -41,6 +42,7 @@ const EXPORT_COLUMNS: ExportColumn<Course>[] = [
   { header: "Subject", accessor: (r) => r.subject ?? "" },
   { header: "Class", accessor: (r) => r.class ?? "" },
   { header: "Topic", accessor: (r) => r.title },
+  { header: "Description", accessor: (r) => r.description },
   { header: "Month", accessor: (r) => r.month },
   { header: "Week", accessor: (r) => `Week ${r.week}` },
   { header: "Status", accessor: (r) => r.status },
@@ -49,10 +51,20 @@ const EXPORT_COLUMNS: ExportColumn<Course>[] = [
 ];
 
 export default function OutlinePage() {
+  const { user } = useAuth();
   const { data, pagination, loading, params, setFilter, refresh, searchInput, setSearchInput, search } =
     usePaginatedQuery<Course>(["courses"], courseService.getCourses, {
       initialParams: { page: 1, limit: 10, sortBy: "lectureNumber", sortOrder: "asc" },
     });
+
+  // The most recent topic added by the current user, used to prefill the New Topic form.
+  const lastCourseQuery = useQuery({
+    queryKey: ["courses", "last", user?.id],
+    queryFn: () => courseService.getCourses({ limit: 1, createdBy: user!.id, sortBy: "createdAt", sortOrder: "desc" }),
+    enabled: Boolean(user?.id),
+    staleTime: 5 * 60 * 1000,
+  });
+  const lastCourse = lastCourseQuery.data?.data?.[0];
 
   const [sorting, setSorting] = useState<SortingState>([{ id: "lectureNumber", desc: false }]);
   const [modalOpen, setModalOpen] = useState(false);
@@ -104,9 +116,19 @@ export default function OutlinePage() {
   const openCreate = useCallback(() => {
     setEditing(null);
     setOutcomes([""]);
-    form.reset();
+    form.reset({
+      subject: lastCourse?.subject ?? "",
+      className: lastCourse?.class ?? "",
+      month: lastCourse?.month ?? "January",
+      week: String(lastCourse?.week ?? 1),
+      lectureNumber: lastCourse ? String(lastCourse.lectureNumber + 1) : "",
+      title: "",
+      description: "",
+      duration: lastCourse?.duration ?? "",
+      notes: "",
+    });
     setModalOpen(true);
-  }, [form]);
+  }, [form, lastCourse]);
 
   const openEdit = useCallback(
     (course: Course) => {
@@ -188,6 +210,7 @@ export default function OutlinePage() {
   const [exporting, setExporting] = useState(false);
 
   // Exports ALL topics matching the current filters (subject/class/month/week/status/search), not just the visible page.
+  // Sorted by week so the PDF groups week 1 first, then week 2, lectures ascending inside each week.
   const exportAllPDF = useCallback(async (): Promise<void> => {
     setExporting(true);
     try {
@@ -200,8 +223,8 @@ export default function OutlinePage() {
         month: params.month as string,
         week: params.week as string,
         status: params.status as string,
-        sortBy: params.sortBy as string,
-        sortOrder: params.sortOrder as "asc" | "desc",
+        sortBy: "week",
+        sortOrder: "asc",
       });
       await exportPDF("Course Outline", EXPORT_COLUMNS, res.data, "course-outline");
     } catch (err) {
@@ -209,7 +232,7 @@ export default function OutlinePage() {
     } finally {
       setExporting(false);
     }
-  }, [search, params.subject, params.class, params.month, params.week, params.status, params.sortBy, params.sortOrder]);
+  }, [search, params.subject, params.class, params.month, params.week, params.status]);
 
   const onSubmit = form.handleSubmit(async (values) => {
     const payload: CoursePayload = {

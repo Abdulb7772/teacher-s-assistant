@@ -126,8 +126,8 @@ export default function StudentsPage() {
         <Select
           aria-label="Filter by class"
           options={classOptions}
-          value={String(params.class ?? "")}
-          onChange={(e) => setFilter("class", e.target.value)}
+          value={String(params.className ?? "")}
+          onChange={(e) => setFilter("className", e.target.value)}
           className="w-full sm:w-44 xl:w-44"
         />
       </div>

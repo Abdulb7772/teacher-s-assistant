@@ -7,15 +7,17 @@ interface CourseQuery {
   status?: string;
   subject?: string;
   class?: string;
+  createdBy?: string;
 }
 
-export const buildCourseFilters = ({ search, month, week, status, subject, class: cls }: CourseQuery): Record<string, unknown> => {
+export const buildCourseFilters = ({ search, month, week, status, subject, class: cls, createdBy }: CourseQuery): Record<string, unknown> => {
   const filter: Record<string, unknown> = {};
   if (month) filter.month = month;
   if (week) filter.week = Number(week);
   if (status) filter.status = status;
   if (subject) filter.subject = subject;
   if (cls) filter.class = cls;
+  if (createdBy) filter.createdBy = createdBy;
   if (search) {
     filter.$or = [
       { title: { $regex: search, $options: "i" } },
@@ -29,7 +31,10 @@ export const buildCourseFilters = ({ search, month, week, status, subject, class
 export const courseSort = ({ sortBy, sortOrder }: { sortBy?: string; sortOrder?: string }): Record<string, 1 | -1> => {
   const allowed = ["month", "week", "lectureNumber", "title", "status", "createdAt", "completionDate"];
   const key = allowed.includes(sortBy || "") ? (sortBy as string) : "createdAt";
-  return { [key]: sortOrder === "asc" ? 1 : -1 };
+  const order = sortOrder === "asc" ? 1 : -1;
+  // Week always groups week 1 first, then week 2, lectures ascending inside the group.
+  if (key === "week") return { week: order, lectureNumber: 1 };
+  return { [key]: order, lectureNumber: 1 };
 };
 
 export const paginate = (page?: string, limit?: string): { page: number; limit: number } => ({

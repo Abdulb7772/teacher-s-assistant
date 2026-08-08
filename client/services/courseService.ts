@@ -10,6 +10,7 @@ export interface CourseFilters {
   status?: string;
   subject?: string;
   class?: string;
+  createdBy?: string;
   sortBy?: string;
   sortOrder?: "asc" | "desc";
 }
