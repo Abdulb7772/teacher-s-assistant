@@ -1,3 +1,4 @@
+import { type PipelineStage } from "mongoose";
 import Course, { MONTHS } from "../models/Course";
 
 interface CourseQuery {
@@ -44,7 +45,7 @@ export const buildCourseMonthSortPipeline = (
   page: number,
   limit: number,
   sortOrder?: string
-) => {
+) : PipelineStage[] => {
   const monthDirection = sortOrder === "asc" ? 1 : -1;
 
   return [
@@ -60,7 +61,7 @@ export const buildCourseMonthSortPipeline = (
     { $skip: (page - 1) * limit },
     { $limit: limit },
     { $project: { monthIndex: 0 } },
-  ] as const;
+  ];
 };
 
 export const paginate = (page?: string, limit?: string): { page: number; limit: number } => ({
