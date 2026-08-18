@@ -112,6 +112,21 @@ export default function QuizzesPage() {
     [quizzesQuery.data]
   );
 
+  const totalFor = useCallback(
+    (studentId: string): { obtained: number; total: number } | null => {
+      const entries = quizColumns
+        .map((col) => quizFor(studentId, col.name))
+        .filter((q): q is Quiz => Boolean(q));
+      return entries.length === 0
+        ? null
+        : {
+            obtained: entries.reduce((sum, q) => sum + Number(q.obtainedMarks), 0),
+            total: entries.reduce((sum, q) => sum + Number(q.totalMarks), 0),
+          };
+    },
+    [quizColumns, quizFor]
+  );
+
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["students", selectedClass, selectedSubject] });
     queryClient.invalidateQueries({ queryKey: ["quizzes", selectedClass, selectedSubject] });
@@ -392,6 +407,7 @@ export default function QuizzesPage() {
                       </span>
                     </th>
                   ))}
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">Total</th>
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">Avg</th>
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">Grade</th>
                 </tr>
@@ -440,6 +456,14 @@ export default function QuizzesPage() {
                         </td>
                       );
                     })}
+                    {(() => {
+                      const t = totalFor(s._id);
+                      return (
+                        <td className="px-4 py-2.5 text-center font-semibold text-white">
+                          {t ? `${t.obtained}/${t.total}` : "—"}
+                        </td>
+                      );
+                    })()}
                     <td className="px-4 py-2.5 text-center font-semibold text-gold">
                       {s.quizCount > 0 ? s.average : "—"}
                     </td>
@@ -450,7 +474,7 @@ export default function QuizzesPage() {
                 ))}
                 {students.length === 0 && (
                   <tr>
-                    <td colSpan={quizColumns.length + 3} className="px-4 py-10 text-center text-sm text-white/40">
+                    <td colSpan={quizColumns.length + 4} className="px-4 py-10 text-center text-sm text-white/40">
                       <Users size={20} className="mx-auto mb-2 opacity-40" />
                       No students in {selectedClass} class yet
                     </td>
