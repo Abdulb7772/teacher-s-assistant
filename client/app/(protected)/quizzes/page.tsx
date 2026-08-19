@@ -17,6 +17,7 @@ import Modal from "@/components/ui/Modal";
 import PageHeader from "@/components/ui/PageHeader";
 import Pagination from "@/components/ui/Pagination";
 import { SkeletonRows } from "@/components/ui/Skeleton";
+import { gradeFor, percentageOf } from "@/lib/grades";
 import useKeyShortcut from "@/hooks/useKeyShortcut";
 import { exportPDF, type ExportColumn } from "@/lib/exportUtils";
 import type { Quiz, StudentPerformance } from "@/types";
@@ -141,15 +142,19 @@ export default function QuizzesPage() {
     if (!selectionReady || studentsData.length === 0) return;
     setExporting(true);
     try {
-      const rows = studentsData.map((s) => ({
-        name: s.name,
-        cells: quizColumns.map((c) => {
-          const q = quizFor(s._id, c.name);
-          return q ? `${q.obtainedMarks}/${q.totalMarks}` : "";
-        }),
-        avg: s.quizCount > 0 ? String(s.average) : "",
-        grade: s.quizCount > 0 ? s.grade : "",
-      }));
+      const rows = studentsData.map((s) => {
+        const t = totalFor(s._id);
+        const percent = t ? percentageOf(t.obtained, t.total) : null;
+        return {
+          name: s.name,
+          cells: quizColumns.map((c) => {
+            const q = quizFor(s._id, c.name);
+            return q ? `${q.obtainedMarks}/${q.totalMarks}` : "";
+          }),
+          percent: percent !== null ? `${percent}%` : "",
+          grade: percent !== null ? gradeFor(percent).grade : "",
+        };
+      });
       const columns: ExportColumn<(typeof rows)[number]>[] = [
         { header: "Student", accessor: (r) => r.name },
         ...quizColumns.map(
@@ -158,7 +163,7 @@ export default function QuizzesPage() {
             accessor: (r) => r.cells[i],
           })
         ),
-        { header: "Avg", accessor: (r) => r.avg },
+        { header: "Percentage", accessor: (r) => r.percent },
         { header: "Grade", accessor: (r) => r.grade },
       ];
       await exportPDF(
@@ -170,7 +175,7 @@ export default function QuizzesPage() {
     } finally {
       setExporting(false);
     }
-  }, [selectionReady, studentsQuery.data, quizColumns, quizFor, selectedSubject, selectedClass]);
+  }, [selectionReady, studentsQuery.data, quizColumns, quizFor, totalFor, selectedSubject, selectedClass]);
 
   const openColumnModal = useCallback(() => {
     setColumnModalOpen(true);
@@ -408,7 +413,7 @@ export default function QuizzesPage() {
                     </th>
                   ))}
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">Total</th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">Avg</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">Percentage</th>
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">Grade</th>
                 </tr>
               </thead>
@@ -458,23 +463,30 @@ export default function QuizzesPage() {
                     })}
                     {(() => {
                       const t = totalFor(s._id);
+                      const percent = t ? percentageOf(t.obtained, t.total) : null;
                       return (
-                        <td className="px-4 py-2.5 text-center font-semibold text-white">
-                          {t ? `${t.obtained}/${t.total}` : "—"}
-                        </td>
+                        <>
+                          <td className="px-4 py-2.5 text-center font-semibold text-white">
+                            {t ? `${t.obtained}/${t.total}` : "—"}
+                          </td>
+                          <td className="px-4 py-2.5 text-center font-semibold text-gold">
+                            {percent !== null ? `${percent}%` : "—"}
+                          </td>
+                          <td className="px-4 py-2.5 text-center">
+                            {percent !== null ? (
+                              <GradeBadge grade={gradeFor(percent).grade} />
+                            ) : (
+                              <span className="text-white/25">—</span>
+                            )}
+                          </td>
+                        </>
                       );
                     })()}
-                    <td className="px-4 py-2.5 text-center font-semibold text-gold">
-                      {s.quizCount > 0 ? s.average : "—"}
-                    </td>
-                    <td className="px-4 py-2.5 text-center">
-                      {s.quizCount > 0 ? <GradeBadge grade={s.grade} /> : <span className="text-white/25">—</span>}
-                    </td>
                   </tr>
                 ))}
                 {students.length === 0 && (
                   <tr>
-                    <td colSpan={quizColumns.length + 4} className="px-4 py-10 text-center text-sm text-white/40">
+                    <td colSpan={quizColumns.length + 3} className="px-4 py-10 text-center text-sm text-white/40">
                       <Users size={20} className="mx-auto mb-2 opacity-40" />
                       No students in {selectedClass} class yet
                     </td>
