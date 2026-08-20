@@ -151,6 +151,7 @@ export default function QuizzesPage() {
             const q = quizFor(s._id, c.name);
             return q ? `${q.obtainedMarks}/${q.totalMarks}` : "";
           }),
+          total: t ? `${t.obtained}/${t.total}` : "",
           percent: percent !== null ? `${percent}%` : "",
           grade: percent !== null ? gradeFor(percent).grade : "",
         };
@@ -163,6 +164,7 @@ export default function QuizzesPage() {
             accessor: (r) => r.cells[i],
           })
         ),
+        { header: "Total", accessor: (r) => r.total },
         { header: "Percentage", accessor: (r) => r.percent },
         { header: "Grade", accessor: (r) => r.grade },
       ];
