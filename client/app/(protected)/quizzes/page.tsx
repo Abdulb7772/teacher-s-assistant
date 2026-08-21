@@ -117,7 +117,7 @@ export default function QuizzesPage() {
     (studentId: string): { obtained: number; total: number } | null => {
       const entries = quizColumns
         .map((col) => quizFor(studentId, col.name))
-        .filter((q): q is Quiz => Boolean(q));
+        .filter((q): q is Quiz => Boolean(q) && q.remarks !== "Absent");
       return entries.length === 0
         ? null
         : {
@@ -244,6 +244,16 @@ export default function QuizzesPage() {
     onError: (err) => toast.error(err.message),
   });
 
+  const saveAbsentsMutation = useMutation({
+    mutationFn: (payload: { subject: string; class: string }) =>
+      quizService.markAbsent(payload),
+    onSuccess: (res) => {
+      toast.success(`Marks marked absent — ${res.data?.updated || 0} student(s)`);
+      invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   const startEdit = useCallback(
     (student: StudentPerformance, column: { name: string; total: number }) => {
       const quiz = quizFor(student._id, column.name);
@@ -273,7 +283,7 @@ export default function QuizzesPage() {
       totalMarks: editing.column.total,
       obtainedMarks: obtained,
       date: quiz?.date.slice(0, 10) ?? today(),
-      remarks: quiz?.remarks ?? "",
+      remarks: obtained > 0 ? "" : (quiz?.remarks ?? ""),
     });
     setEditing(null);
   }, [editing, quizFor, saveCellMutation, selectedSubject, selectedClass]);
@@ -288,11 +298,21 @@ export default function QuizzesPage() {
         breadcrumbs={[{ label: "Dashboard", to: "/dashboard" }, { label: "Quiz Marks" }]}
       />
 
-      <div className="mb-5 flex flex-wrap items-center gap-3">
-        <span className="flex items-center gap-2 text-sm text-white/50">
-          <BookOpen size={16} className="text-gold" /> Subject
-        </span>
-        {subjects.map((subject) => (
+<div className="mb-5 flex flex-wrap items-center gap-3">
+          <span className="flex items-center gap-2 text-sm text-white/50">
+            <BookOpen size={16} className="text-gold" /> Subject
+          </span>
+          {selectionReady && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => saveAbsentsMutation.mutate({ subject: selectedSubject as string, class: selectedClass as string })}
+              disabled={saveAbsentsMutation.isPending}
+            >
+              Save Absents
+            </Button>
+          )}
+          {subjects.map((subject) => (
           <button
             key={subject._id}
             onClick={() => setSelectedSubject(subject.name)}
@@ -430,36 +450,46 @@ export default function QuizzesPage() {
                       const isEditing = editing?.student._id === s._id && editing?.column.name === col.name;
                       return (
                         <td key={col.name} className="px-4 py-2.5 text-center">
-                          {isEditing ? (
-                            <input
-                              autoFocus
-                              type="number"
-                              min={0}
-                              value={editing.value}
-                              onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-                              onBlur={commitEdit}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault();
-                                  e.currentTarget.blur();
+{isEditing ? (
+                              <input
+                                autoFocus
+                                type="number"
+                                min={0}
+                                value={editing.value}
+                                onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+                                onBlur={commitEdit}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    e.currentTarget.blur();
+                                  }
+                                  if (e.key === "Escape") setEditing(null);
+                                }}
+                                className="w-20 rounded-lg border border-gold/50 bg-navy px-2 py-1.5 text-center text-sm font-semibold text-white outline-none focus:ring-2 focus:ring-gold/30"
+                              />
+                            ) : (
+                              <button
+                                onClick={() => startEdit(s, col)}
+                                className={`min-w-[56px] rounded-lg px-2 py-1.5 text-sm font-semibold transition-colors ${
+                                  quiz
+                                    ? "text-white hover:bg-gold/15"
+                                    : "text-white/25 hover:bg-gold/10 hover:text-gold"
+                                }`}
+                                title={
+                                  quiz?.remarks === "Absent"
+                                    ? "Marks entered — click to edit"
+                                    : quiz
+                                      ? "Edit marks"
+                                      : "Add marks"
                                 }
-                                if (e.key === "Escape") setEditing(null);
-                              }}
-                              className="w-20 rounded-lg border border-gold/50 bg-navy px-2 py-1.5 text-center text-sm font-semibold text-white outline-none focus:ring-2 focus:ring-gold/30"
-                            />
-                          ) : (
-                            <button
-                              onClick={() => startEdit(s, col)}
-                              className={`min-w-[56px] rounded-lg px-2 py-1.5 text-sm font-semibold transition-colors ${
-                                quiz
-                                  ? "text-white hover:bg-gold/15"
-                                  : "text-white/25 hover:bg-gold/10 hover:text-gold"
-                              }`}
-                              title={quiz ? "Edit marks" : "Add marks"}
-                            >
-                              {quiz ? `${quiz.obtainedMarks}/${quiz.totalMarks}` : "—"}
-                            </button>
-                          )}
+                              >
+                                {quiz?.remarks === "Absent"
+                                  ? "Absent"
+                                  : quiz
+                                    ? `${quiz.obtainedMarks}/${quiz.totalMarks}`
+                                    : "—"}
+                              </button>
+                            )}
                         </td>
                       );
                     })}

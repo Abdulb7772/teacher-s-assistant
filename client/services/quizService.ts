@@ -44,3 +44,6 @@ export interface QuizColumnDeletePayload {
 
 export const deleteQuizColumn = (payload: QuizColumnDeletePayload): Promise<ApiResponse<{ deleted: number }>> =>
   api.delete("/quizzes/column", { data: payload }).then((r) => r.data);
+
+export const markAbsent = (payload: { subject: string; class: string }): Promise<ApiResponse<{ updated: number }>> =>
+  api.post("/quizzes/absent", payload).then((r) => r.data);

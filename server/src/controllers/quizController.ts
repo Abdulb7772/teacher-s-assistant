@@ -88,6 +88,16 @@ export const updateQuiz = asyncHandler(async (req: Request, res: Response) => {
   res.json({ success: true, message: "Quiz mark updated", data: quiz });
 });
 
+export const markAbsent = asyncHandler(async (req: Request, res: Response) => {
+  const { subject, class: className } = req.body as { subject: string; class: string };
+  if (!subject || !className) throw new ApiError(400, "Subject and class are required");
+  const result = await Quiz.updateMany(
+    { subject, class: className, obtainedMarks: 0, $or: [{ remarks: "" }, { remarks: null }, { remarks: { $exists: false } }] },
+    { $set: { remarks: "Absent" } }
+  );
+  res.json({ success: true, message: "Students marked absent", data: { updated: result.modifiedCount } });
+});
+
 export const deleteQuizColumn = asyncHandler(async (req: Request, res: Response) => {
   const { quizName, subject, class: className } = req.body as { quizName: string; subject: string; class: string };
   const deleted = await Quiz.deleteMany({ quizName, subject, class: className });
