@@ -117,12 +117,16 @@ export default function QuizzesPage() {
     (studentId: string): { obtained: number; total: number } | null => {
       const entries = quizColumns
         .map((col) => quizFor(studentId, col.name))
-        .filter((q): q is Quiz => Boolean(q) && q.remarks !== "Absent");
+        .filter((q): q is Quiz => Boolean(q));
       return entries.length === 0
         ? null
         : {
-            obtained: entries.reduce((sum, q) => sum + Number(q.obtainedMarks), 0),
-            total: entries.reduce((sum, q) => sum + Number(q.totalMarks), 0),
+            obtained: entries
+              .filter((q) => q.remarks !== "Absent")
+              .reduce((sum, q) => sum + Number(q.obtainedMarks), 0),
+            total: entries
+              .filter((q) => q.remarks !== "Absent")
+              .reduce((sum, q) => sum + Number(q.totalMarks), 0),
           };
     },
     [quizColumns, quizFor]
