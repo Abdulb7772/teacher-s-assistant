@@ -121,12 +121,8 @@ export default function QuizzesPage() {
       return entries.length === 0
         ? null
         : {
-            obtained: entries
-              .filter((q) => q.remarks !== "Absent")
-              .reduce((sum, q) => sum + Number(q.obtainedMarks), 0),
-            total: entries
-              .filter((q) => q.remarks !== "Absent")
-              .reduce((sum, q) => sum + Number(q.totalMarks), 0),
+            obtained: entries.reduce((sum, q) => sum + Number(q.obtainedMarks), 0),
+            total: entries.reduce((sum, q) => sum + Number(q.totalMarks), 0),
           };
     },
     [quizColumns, quizFor]
