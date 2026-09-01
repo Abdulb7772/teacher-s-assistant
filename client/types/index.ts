@@ -63,7 +63,7 @@ export interface Quiz {
   class?: string;
   quizName: string;
   totalMarks: number;
-  obtainedMarks: number;
+  obtainedMarks: number | null;
   date: string;
   remarks?: string;
   createdAt: string;

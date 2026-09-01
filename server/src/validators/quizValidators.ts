@@ -4,7 +4,7 @@ export const quizValidators = [
   body("studentId").isMongoId().withMessage("Valid student id is required"),
   body("quizName").trim().notEmpty().withMessage("Quiz name is required").isLength({ max: 120 }),
   body("totalMarks").isFloat({ min: 1 }).withMessage("Total marks must be a positive number"),
-  body("obtainedMarks").isFloat({ min: 0 }).withMessage("Obtained marks cannot be negative"),
+  body("obtainedMarks").optional({ nullable: true }).isFloat({ min: 0 }).withMessage("Obtained marks cannot be negative"),
   body("subject").optional({ values: "falsy" }).trim().isLength({ max: 60 }),
   body("class").optional({ values: "falsy" }).trim().isLength({ max: 30 }),
   body("date").optional({ nullable: true }).isISO8601().withMessage("Invalid quiz date"),

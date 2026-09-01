@@ -19,7 +19,7 @@ const quizSchema = new Schema<IQuiz>(
     class: { type: String, trim: true, index: true },
     quizName: { type: String, required: [true, "Quiz name is required"], trim: true, maxlength: [120, "Quiz name too long"] },
     totalMarks: { type: Number, required: [true, "Total marks are required"], min: [1, "Total marks must be positive"] },
-    obtainedMarks: { type: Number, required: [true, "Obtained marks are required"], min: [0, "Obtained marks cannot be negative"] },
+    obtainedMarks: { type: Number, default: null, min: [0, "Obtained marks cannot be negative"] },
     date: { type: Date, default: Date.now, index: true },
     remarks: { type: String, trim: true, default: "" },
   },

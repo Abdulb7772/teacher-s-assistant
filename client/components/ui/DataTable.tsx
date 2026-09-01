@@ -69,6 +69,9 @@ export default function DataTable<T = unknown>({
         <thead>
           {table.getHeaderGroups().map((group) => (
             <tr key={group.id}>
+              <th className="table-th sticky top-0 z-10 border-b border-white/10 bg-navy-deep/95 backdrop-blur-xl">
+                S.No
+              </th>
               {group.headers.map((header) => {
                 const meta = header.column.columnDef.meta as { sortable?: boolean } | undefined;
                 const sortable = Boolean(meta?.sortable) && Boolean(onSortingChange);
@@ -104,13 +107,13 @@ export default function DataTable<T = unknown>({
         <tbody>
           {loading ? (
             <tr>
-              <td colSpan={columns.length} className="px-4 py-4">
+              <td colSpan={columns.length + 1} className="px-4 py-4">
                 <SkeletonRows rows={6} />
               </td>
             </tr>
           ) : data.length === 0 ? (
             <tr>
-              <td colSpan={columns.length}>
+              <td colSpan={columns.length + 1}>
                 <EmptyState
                   title={emptyState.title}
                   description={emptyState.description}
@@ -128,6 +131,7 @@ export default function DataTable<T = unknown>({
                   onRowClick ? "cursor-pointer" : ""
                 } ${rowClassName ? rowClassName(row.original) : ""}`}
               >
+                <td className="table-td font-medium text-white/70">{row.index + 1}</td>
                 {row.getVisibleCells().map((cell) => {
                   const value = cell.getValue();
                   const content = flexRender(cell.column.columnDef.cell, cell.getContext());

@@ -32,16 +32,19 @@ const QUIZ_COLUMNS: ColumnDef<Quiz>[] = [
   {
     accessorKey: "obtainedMarks",
     header: "Obtained Marks",
-    cell: ({ getValue }) => <span className="text-white/70">{String(getValue())}</span>,
+    cell: ({ row, getValue }) => {
+      const value = row.original.remarks === "Absent" ? "Absent" : getValue();
+      return <span className="text-white/70">{value === null || value === undefined ? "—" : String(value)}</span>;
+    },
   },
   {
     accessorKey: "obtainedMarks",
     header: "Percentage",
-    cell: ({ row }) => (
-      <span className="font-semibold text-gold">
-        {percentageOf(row.original.obtainedMarks, row.original.totalMarks)}%
-      </span>
-    ),
+    cell: ({ row }) => {
+      const obtained = row.original.obtainedMarks ?? 0;
+      const value = row.original.remarks === "Absent" ? "Absent" : `${percentageOf(obtained, row.original.totalMarks)}%`;
+      return <span className="font-semibold text-gold">{value}</span>;
+    },
   },
   {
     accessorKey: "date",

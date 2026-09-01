@@ -67,7 +67,8 @@ export const createQuizColumn = asyncHandler(async (req: Request, res: Response)
       class: className,
       quizName,
       totalMarks,
-      obtainedMarks: 0,
+      obtainedMarks: null,
+      remarks: "",
       date: date ? new Date(date) : new Date(),
     }));
 
@@ -92,7 +93,12 @@ export const markAbsent = asyncHandler(async (req: Request, res: Response) => {
   const { subject, class: className } = req.body as { subject: string; class: string };
   if (!subject || !className) throw new ApiError(400, "Subject and class are required");
   const result = await Quiz.updateMany(
-    { subject, class: className, obtainedMarks: 0, $or: [{ remarks: "" }, { remarks: null }, { remarks: { $exists: false } }] },
+    {
+      subject,
+      class: className,
+      obtainedMarks: null,
+      $or: [{ remarks: "" }, { remarks: null }, { remarks: { $exists: false } }],
+    },
     { $set: { remarks: "Absent" } }
   );
   res.json({ success: true, message: "Students marked absent", data: { updated: result.modifiedCount } });

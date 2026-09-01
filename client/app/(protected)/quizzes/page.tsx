@@ -146,10 +146,14 @@ export default function QuizzesPage() {
         const t = totalFor(s._id);
         const percent = t ? percentageOf(t.obtained, t.total) : null;
         return {
+          serial: "",
           name: s.name,
           cells: quizColumns.map((c) => {
             const q = quizFor(s._id, c.name);
-            return q ? `${q.obtainedMarks}/${q.totalMarks}` : "";
+            if (!q) return "";
+            if (q.remarks === "Absent") return "Absent";
+            if (q.obtainedMarks === null || q.obtainedMarks === undefined) return "";
+            return `${q.obtainedMarks}/${q.totalMarks}`;
           }),
           total: t ? `${t.obtained}/${t.total}` : "",
           percent: percent !== null ? `${percent}%` : "",
@@ -157,6 +161,7 @@ export default function QuizzesPage() {
         };
       });
       const columns: ExportColumn<(typeof rows)[number]>[] = [
+        { header: "S.No", accessor: (r) => r.serial },
         { header: "Student", accessor: (r) => r.name },
         ...quizColumns.map(
           (c, i): ExportColumn<(typeof rows)[number]> => ({
@@ -257,7 +262,10 @@ export default function QuizzesPage() {
   const startEdit = useCallback(
     (student: StudentPerformance, column: { name: string; total: number }) => {
       const quiz = quizFor(student._id, column.name);
-      setEditing({ student, column, value: quiz ? String(quiz.obtainedMarks) : "" });
+      const initialValue = quiz && quiz.remarks !== "Absent" && quiz.obtainedMarks !== null && quiz.obtainedMarks !== undefined
+        ? String(quiz.obtainedMarks)
+        : "";
+      setEditing({ student, column, value: initialValue });
     },
     [quizFor]
   );
@@ -271,7 +279,8 @@ export default function QuizzesPage() {
       setEditing(null);
       return;
     }
-    if (quiz && Number(quiz.obtainedMarks) === obtained) {
+    const nextRemarks = obtained >= 0 ? "" : quiz?.remarks ?? "";
+    if (quiz && Number(quiz.obtainedMarks ?? 0) === obtained && (quiz.remarks ?? "") === nextRemarks) {
       setEditing(null);
       return;
     }
@@ -283,7 +292,7 @@ export default function QuizzesPage() {
       totalMarks: editing.column.total,
       obtainedMarks: obtained,
       date: quiz?.date.slice(0, 10) ?? today(),
-      remarks: obtained > 0 ? "" : (quiz?.remarks ?? ""),
+      remarks: nextRemarks,
     });
     setEditing(null);
   }, [editing, quizFor, saveCellMutation, selectedSubject, selectedClass]);
@@ -414,6 +423,9 @@ export default function QuizzesPage() {
               <thead>
                 <tr className="border-b border-white/10 bg-white/[0.03] text-left">
                   <th className="sticky left-0 z-10 bg-navy-deep px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">
+                    S.No
+                  </th>
+                  <th className="sticky left-0 z-10 bg-navy-deep px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">
                     Student
                   </th>
                   {quizColumns.map((col) => (
@@ -440,56 +452,62 @@ export default function QuizzesPage() {
                 </tr>
               </thead>
               <tbody>
-                {visibleStudents.map((s) => (
+                {visibleStudents.map((s, index) => (
                   <tr key={s._id} className="border-b border-white/5 transition-colors hover:bg-white/[0.04]">
+                    <td className="sticky left-0 z-10 bg-navy-deep px-4 py-2.5 text-center text-sm font-medium text-white/70">
+                      {(gridPage - 1) * GRID_PAGE_SIZE + index + 1}
+                    </td>
                     <td className="sticky left-0 z-10 bg-navy-deep px-4 py-2.5">
                       <p className="font-medium text-white">{s.name}</p>
                     </td>
                     {quizColumns.map((col) => {
                       const quiz = quizFor(s._id, col.name);
                       const isEditing = editing?.student._id === s._id && editing?.column.name === col.name;
+                      const displayValue = quiz?.remarks === "Absent"
+                        ? "Absent"
+                        : quiz && quiz.obtainedMarks !== null && quiz.obtainedMarks !== undefined
+                          ? `${quiz.obtainedMarks}/${quiz.totalMarks}`
+                          : quiz
+                            ? "—"
+                            : "—";
                       return (
                         <td key={col.name} className="px-4 py-2.5 text-center">
-{isEditing ? (
-                              <input
-                                autoFocus
-                                type="number"
-                                min={0}
-                                value={editing.value}
-                                onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-                                onBlur={commitEdit}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    e.currentTarget.blur();
-                                  }
-                                  if (e.key === "Escape") setEditing(null);
-                                }}
-                                className="w-20 rounded-lg border border-gold/50 bg-navy px-2 py-1.5 text-center text-sm font-semibold text-white outline-none focus:ring-2 focus:ring-gold/30"
-                              />
-                            ) : (
-                              <button
-                                onClick={() => startEdit(s, col)}
-                                className={`min-w-[56px] rounded-lg px-2 py-1.5 text-sm font-semibold transition-colors ${
-                                  quiz
-                                    ? "text-white hover:bg-gold/15"
-                                    : "text-white/25 hover:bg-gold/10 hover:text-gold"
-                                }`}
-                                title={
-                                  quiz?.remarks === "Absent"
-                                    ? "Marks entered — click to edit"
-                                    : quiz
-                                      ? "Edit marks"
-                                      : "Add marks"
+                          {isEditing ? (
+                            <input
+                              autoFocus
+                              type="number"
+                              min={0}
+                              value={editing.value}
+                              onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+                              onBlur={commitEdit}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  e.currentTarget.blur();
                                 }
-                              >
-                                {quiz?.remarks === "Absent"
-                                  ? "Absent"
+                                if (e.key === "Escape") setEditing(null);
+                              }}
+                              className="w-20 rounded-lg border border-gold/50 bg-navy px-2 py-1.5 text-center text-sm font-semibold text-white outline-none focus:ring-2 focus:ring-gold/30"
+                            />
+                          ) : (
+                            <button
+                              onClick={() => startEdit(s, col)}
+                              className={`min-w-[56px] rounded-lg px-2 py-1.5 text-sm font-semibold transition-colors ${
+                                quiz
+                                  ? "text-white hover:bg-gold/15"
+                                  : "text-white/25 hover:bg-gold/10 hover:text-gold"
+                              }`}
+                              title={
+                                quiz?.remarks === "Absent"
+                                  ? "Marks entered — click to edit"
                                   : quiz
-                                    ? `${quiz.obtainedMarks}/${quiz.totalMarks}`
-                                    : "—"}
-                              </button>
-                            )}
+                                    ? "Edit marks"
+                                    : "Add marks"
+                              }
+                            >
+                              {displayValue}
+                            </button>
+                          )}
                         </td>
                       );
                     })}
@@ -518,7 +536,7 @@ export default function QuizzesPage() {
                 ))}
                 {students.length === 0 && (
                   <tr>
-                    <td colSpan={quizColumns.length + 3} className="px-4 py-10 text-center text-sm text-white/40">
+                    <td colSpan={quizColumns.length + 4} className="px-4 py-10 text-center text-sm text-white/40">
                       <Users size={20} className="mx-auto mb-2 opacity-40" />
                       No students in {selectedClass} class yet
                     </td>
