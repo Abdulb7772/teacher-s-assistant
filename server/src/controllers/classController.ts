@@ -41,11 +41,20 @@ export const importStudents = asyncHandler(async (req: Request, res: Response) =
   const schoolClass = await SchoolClass.findById(req.params.id);
   if (!schoolClass) throw new ApiError(404, "Class not found");
   const sourceClasses = (req.body.sourceClasses as string[]).filter((name) => name !== schoolClass.name);
-  const result = await Student.updateMany({ class: { $in: sourceClasses } }, { $set: { class: schoolClass.name } });
+  const sourceStudents = await Student.find({ class: { $in: sourceClasses } });
+  const newStudents = sourceStudents.map((student) => ({
+    name: student.name,
+    rollNumber: student.rollNumber,
+    registrationNumber: student.registrationNumber,
+    email: student.email,
+    class: schoolClass.name,
+    subject: student.subject,
+  }));
+  const result = await Student.insertMany(newStudents);
   res.json({
     success: true,
-    message: `${result.modifiedCount} student${result.modifiedCount === 1 ? "" : "s"} imported`,
-    data: { imported: result.modifiedCount },
+    message: `${result.length} student${result.length === 1 ? "" : "s"} imported`,
+    data: { imported: result.length },
   });
 });
 
