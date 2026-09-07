@@ -44,11 +44,7 @@ export const importStudents = asyncHandler(async (req: Request, res: Response) =
   const sourceStudents = await Student.find({ class: { $in: sourceClasses } });
   const newStudents = sourceStudents.map((student) => ({
     name: student.name,
-    rollNumber: student.rollNumber,
-    registrationNumber: student.registrationNumber,
-    email: student.email,
     class: schoolClass.name,
-    subject: student.subject,
   }));
   const result = await Student.insertMany(newStudents);
   res.json({
