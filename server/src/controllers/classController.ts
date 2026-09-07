@@ -1,5 +1,8 @@
 import { Request, Response } from "express";
 import SchoolClass from "../models/Class";
+import Student from "../models/Student";
+import Quiz from "../models/Quiz";
+import Course from "../models/Course";
 import ApiError from "../utils/ApiError";
 import asyncHandler from "../utils/asyncHandler";
 
@@ -14,6 +17,36 @@ export const createClass = asyncHandler(async (req: Request, res: Response) => {
   if (existing) throw new ApiError(409, "Class already exists");
   const cls = await SchoolClass.create({ name });
   res.status(201).json({ success: true, message: "Class added", data: cls });
+});
+
+export const updateClass = asyncHandler(async (req: Request, res: Response) => {
+  const name = String(req.body.name).trim();
+  const schoolClass = await SchoolClass.findById(req.params.id);
+  if (!schoolClass) throw new ApiError(404, "Class not found");
+  const existing = await SchoolClass.findOne({ name, _id: { $ne: schoolClass._id } });
+  if (existing) throw new ApiError(409, "Class already exists");
+
+  const previousName = schoolClass.name;
+  schoolClass.name = name;
+  await schoolClass.save();
+  await Promise.all([
+    Student.updateMany({ class: previousName }, { $set: { class: name } }),
+    Quiz.updateMany({ class: previousName }, { $set: { class: name } }),
+    Course.updateMany({ class: previousName }, { $set: { class: name } }),
+  ]);
+  res.json({ success: true, message: "Class updated", data: schoolClass });
+});
+
+export const importStudents = asyncHandler(async (req: Request, res: Response) => {
+  const schoolClass = await SchoolClass.findById(req.params.id);
+  if (!schoolClass) throw new ApiError(404, "Class not found");
+  const sourceClasses = (req.body.sourceClasses as string[]).filter((name) => name !== schoolClass.name);
+  const result = await Student.updateMany({ class: { $in: sourceClasses } }, { $set: { class: schoolClass.name } });
+  res.json({
+    success: true,
+    message: `${result.modifiedCount} student${result.modifiedCount === 1 ? "" : "s"} imported`,
+    data: { imported: result.modifiedCount },
+  });
 });
 
 export const deleteClass = asyncHandler(async (req: Request, res: Response) => {
