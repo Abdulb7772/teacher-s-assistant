@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { BookMarked, GraduationCap, Plus, Trash2, type LucideIcon } from "lucide-react";
+import { BookMarked, GraduationCap, Pencil, Plus, Trash2, Upload, X, type LucideIcon } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -26,7 +26,10 @@ function NameList({
   loading,
   queryKeys,
   onCreate,
+  onUpdate,
   onDelete,
+  importOptions,
+  onImport,
 }: {
   title: string;
   subtitle: string;
@@ -36,9 +39,16 @@ function NameList({
   loading: boolean;
   queryKeys: string[];
   onCreate: (name: string) => Promise<unknown>;
+  onUpdate: (id: string, name: string) => Promise<unknown>;
   onDelete: (id: string) => Promise<unknown>;
+  importOptions?: { _id: string; name: string }[];
+  onImport?: (id: string, sourceClasses: string[]) => Promise<unknown>;
 }) {
   const queryClient = useQueryClient();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [importingId, setImportingId] = useState<string | null>(null);
+  const [importSources, setImportSources] = useState<string[]>([]);
+  const [newItemImportSources, setNewItemImportSources] = useState<string[]>([]);
   const form = useForm<NameFormValues>({
     resolver: zodResolver(nameFormSchema),
     defaultValues: { name: "" },
@@ -46,10 +56,17 @@ function NameList({
 
   const createMutation = useMutation({
     mutationFn: onCreate,
-    onSuccess: () => {
+    onSuccess: async (data) => {
       toast.success(`${title.replace(/s$/, "")} added`);
       queryKeys.forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
+      const createdId = (data as { data?: { _id?: string } })?.data?._id;
+      if (createdId && onImport && newItemImportSources.length) {
+        await onImport(createdId, newItemImportSources);
+        queryClient.invalidateQueries({ queryKey: ["students"] });
+        toast.success("Students imported");
+      }
       form.reset();
+      setNewItemImportSources([]);
     },
     onError: (err) => toast.error(err.message),
   });
@@ -59,6 +76,28 @@ function NameList({
     onSuccess: () => {
       toast.success(`${title.replace(/s$/, "")} deleted`);
       queryKeys.forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) => onUpdate(id, name),
+    onSuccess: () => {
+      toast.success(`${title.replace(/s$/, "")} updated`);
+      queryKeys.forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
+      setEditingId(null);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const importMutation = useMutation({
+    mutationFn: ({ id, sourceClasses }: { id: string; sourceClasses: string[] }) =>
+      onImport ? onImport(id, sourceClasses) : Promise.resolve(),
+    onSuccess: () => {
+      toast.success("Students imported");
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+      setImportingId(null);
+      setImportSources([]);
     },
     onError: (err) => toast.error(err.message),
   });
@@ -95,6 +134,22 @@ function NameList({
           Add
         </Button>
       </form>
+      {onImport && importOptions && (
+        <div className="mb-5 -mt-2">
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-white/60" htmlFor={`new-${title.toLowerCase()}-sources`}>
+            Import students into this new {title.replace(/s$/, "").toLowerCase()} (optional)
+          </label>
+          <select
+            id={`new-${title.toLowerCase()}-sources`}
+            multiple
+            value={newItemImportSources}
+            onChange={(event) => setNewItemImportSources(Array.from(event.target.selectedOptions, (option) => option.value))}
+            className="input-field min-h-20 w-full"
+          >
+            {importOptions.map((option) => <option key={option._id} value={option.name}>{option.name}</option>)}
+          </select>
+        </div>
+      )}
 
       <ul className="space-y-2">
         {loading && <li className="text-sm text-white/40">Loading {title.toLowerCase()}...</li>}
@@ -102,19 +157,74 @@ function NameList({
           <li className="text-sm text-white/40">No {title.toLowerCase()} yet — add your first above.</li>
         )}
         {items.map((item) => (
-          <li
-            key={item._id}
-            className="flex items-center justify-between rounded-xl border border-white/10 px-4 py-2.5"
-          >
-            <span className="text-sm font-medium text-white">{item.name}</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={Trash2}
-              onClick={() => deleteMutation.mutate(item._id)}
-              className="text-red-400 hover:bg-danger/15"
-              title={`Delete ${title.replace(/s$/, "").toLowerCase()}`}
-            />
+          <li key={item._id} className="rounded-xl border border-white/10 px-4 py-2.5">
+            {editingId === item._id ? (
+              <form
+                className="flex items-start gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const formData = new FormData(event.currentTarget);
+                  const name = String(formData.get("name") ?? "").trim();
+                  if (name) updateMutation.mutate({ id: item._id, name });
+                }}
+              >
+                <Input name="name" defaultValue={item.name} aria-label={`Edit ${title.replace(/s$/, "").toLowerCase()} name`} className="flex-1" autoFocus />
+                <Button type="submit" size="sm" loading={updateMutation.isPending}>Save</Button>
+                <Button type="button" variant="ghost" size="sm" icon={X} onClick={() => setEditingId(null)} title="Cancel edit" />
+              </form>
+            ) : (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-medium text-white">{item.name}</span>
+                <div className="flex items-center gap-1">
+                  {onImport && importOptions && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon={Upload}
+                      onClick={() => {
+                        setImportingId(importingId === item._id ? null : item._id);
+                        setImportSources([]);
+                      }}
+                      title="Import students from existing classes"
+                    />
+                  )}
+                  <Button variant="ghost" size="sm" icon={Pencil} onClick={() => setEditingId(item._id)} title={`Edit ${title.replace(/s$/, "").toLowerCase()}`} />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={Trash2}
+                    onClick={() => deleteMutation.mutate(item._id)}
+                    className="text-red-400 hover:bg-danger/15"
+                    title={`Delete ${title.replace(/s$/, "").toLowerCase()}`}
+                  />
+                </div>
+              </div>
+            )}
+            {importingId === item._id && onImport && importOptions && (
+              <form
+                className="mt-3 border-t border-white/10 pt-3"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (importSources.length) importMutation.mutate({ id: item._id, sourceClasses: importSources });
+                }}
+              >
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-white/60" htmlFor={`import-${item._id}`}>
+                  Import students from
+                </label>
+                <select
+                  id={`import-${item._id}`}
+                  multiple
+                  value={importSources}
+                  onChange={(event) => setImportSources(Array.from(event.target.selectedOptions, (option) => option.value))}
+                  className="input-field min-h-24 w-full"
+                >
+                  {importOptions.filter((option) => option._id !== item._id).map((option) => <option key={option._id} value={option.name}>{option.name}</option>)}
+                </select>
+                <div className="mt-2 flex justify-end">
+                  <Button type="submit" size="sm" icon={Upload} loading={importMutation.isPending} disabled={!importSources.length}>Import students</Button>
+                </div>
+              </form>
+            )}
           </li>
         ))}
       </ul>
@@ -152,6 +262,7 @@ export default function ManageSubjectsPage() {
           loading={subjectsQuery.isPending}
           queryKeys={["subjects"]}
           onCreate={(name) => subjectService.createSubject({ name })}
+          onUpdate={(id, name) => subjectService.updateSubject(id, { name })}
           onDelete={(id) => subjectService.deleteSubject(id)}
         />
         <NameList
@@ -163,7 +274,10 @@ export default function ManageSubjectsPage() {
           loading={classesQuery.isPending}
           queryKeys={["classes"]}
           onCreate={(name) => classService.createClass({ name })}
+          onUpdate={(id, name) => classService.updateClass(id, { name })}
           onDelete={(id) => classService.deleteClass(id)}
+          importOptions={classesQuery.data?.data ?? []}
+          onImport={(id, sourceClasses) => classService.importStudents(id, sourceClasses)}
         />
       </div>
     </>
