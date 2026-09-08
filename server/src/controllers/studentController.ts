@@ -33,7 +33,7 @@ export const getStudents = asyncHandler(async (req: Request, res: Response) => {
     {
       $sort: {
         [req.query.sortBy === "percentage" ? "percentage" : "createdAt"]:
-          req.query.sortOrder === "asc" ? 1 : -1,
+          req.query.sortOrder === "asc" || !req.query.sortOrder ? 1 : -1,
       },
     },
     { $skip: (page - 1) * limit },
