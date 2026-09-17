@@ -3,8 +3,8 @@ export interface ExportColumn<T = Record<string, unknown>> {
   accessor: (row: T) => string | number | Date | null | undefined;
 }
 
-export interface ExportOptions<T> {
-  rowStyles?: { [rowIndex: number]: { fillColor: number[] } };
+export interface ExportOptions {
+  rowStyles?: { [rowIndex: number]: { fillColor: [number, number, number] } };
 }
 
 const cleanValue = (value: unknown): string => {
@@ -16,7 +16,7 @@ const cleanValue = (value: unknown): string => {
 const toRows = <T>(data: T[], columns: ExportColumn<T>[]): string[][] =>
   data.map((row) => columns.map((col) => cleanValue(col.accessor(row))));
 
-export const exportPDF = async <T>(title: string, columns: ExportColumn<T>[], data: T[], filename: string, options?: ExportOptions<T>): Promise<void> => {
+export const exportPDF = async <T>(title: string, columns: ExportColumn<T>[], data: T[], filename: string, options?: ExportOptions): Promise<void> => {
   const [{ jsPDF }, { default: autoTable }] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
   const doc = new jsPDF({ orientation: "landscape" });
   doc.setFillColor(7, 26, 47);
