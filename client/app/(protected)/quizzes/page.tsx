@@ -134,7 +134,7 @@ export default function QuizzesPage() {
         const t = totalFor(s._id);
         return { id: s._id, pct: t ? percentageOf(t.obtained, t.total) : -1 };
       })
-      .filter((e) => e.pct >= 0);
+      .filter((e) => e.pct >= 50);
     totals.sort((a, b) => b.pct - a.pct);
     const map = new Map<string, number>();
     let rank = 1;
@@ -543,7 +543,7 @@ export default function QuizzesPage() {
                             {percent !== null ? `${percent}%` : "—"}
                           </td>
                           <td className="px-4 py-2.5 text-center font-semibold text-gold">
-                            {t ? (positionMap.get(s._id) ?? "—") : "—"}
+                            {t ? (percent !== null && percent < 50 ? "Failed" : (positionMap.get(s._id) ?? "—")) : "—"}
                           </td>
                           <td className="px-4 py-2.5 text-center">
                             {percent !== null ? (
