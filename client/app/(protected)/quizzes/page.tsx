@@ -179,7 +179,7 @@ export default function QuizzesPage() {
           isFailed: percent !== null && percent < 50,
         };
       });
-      const rowStyles: { [rowIndex: number]: { fillColor: number[] } } = {};
+      const rowStyles: { [rowIndex: number]: { fillColor: [number, number, number] } } = {};
       rows.forEach((r, i) => {
         if (r.isFailed) rowStyles[i] = { fillColor: [255, 220, 220] };
       });
