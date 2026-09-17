@@ -137,7 +137,7 @@ export default function QuizzesPage() {
     const map = new Map<string, number>();
     let rank = 1;
     totals.forEach((entry, i) => {
-      if (i > 0 && entry.pct < totals[i - 1].pct) rank = i + 1;
+      if (i > 0 && entry.pct < totals[i - 1].pct) rank++;
       map.set(entry.id, rank);
     });
     return map;
