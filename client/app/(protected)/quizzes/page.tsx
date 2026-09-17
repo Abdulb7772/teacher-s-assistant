@@ -179,7 +179,6 @@ export default function QuizzesPage() {
       const columns: ExportColumn<(typeof rows)[number]>[] = [
         { header: "S.No", accessor: (r) => r.serial },
         { header: "Student", accessor: (r) => r.name },
-        { header: "Position", accessor: (r) => r.position },
         ...quizColumns.map(
           (c, i): ExportColumn<(typeof rows)[number]> => ({
             header: `${c.name} (${c.total})`,
@@ -188,6 +187,7 @@ export default function QuizzesPage() {
         ),
         { header: "Total", accessor: (r) => r.total },
         { header: "Percentage", accessor: (r) => r.percent },
+        { header: "Position", accessor: (r) => r.position },
         { header: "Grade", accessor: (r) => r.grade },
       ];
       await exportPDF(
@@ -465,8 +465,8 @@ export default function QuizzesPage() {
                   ))}
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">Total</th>
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">Percentage</th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">Grade</th>
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">Position</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">Grade</th>
                 </tr>
               </thead>
               <tbody>
@@ -540,15 +540,15 @@ export default function QuizzesPage() {
                           <td className="px-4 py-2.5 text-center font-semibold text-gold">
                             {percent !== null ? `${percent}%` : "—"}
                           </td>
+                          <td className="px-4 py-2.5 text-center font-semibold text-gold">
+                            {positionMap.get(s._id) ?? "—"}
+                          </td>
                           <td className="px-4 py-2.5 text-center">
                             {percent !== null ? (
                               <GradeBadge grade={gradeFor(percent).grade} />
                             ) : (
                               <span className="text-white/25">—</span>
                             )}
-                          </td>
-                          <td className="px-4 py-2.5 text-center font-semibold text-gold">
-                            {positionMap.get(s._id) ?? "—"}
                           </td>
                         </>
                       );
