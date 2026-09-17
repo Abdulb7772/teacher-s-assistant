@@ -159,11 +159,11 @@ export default function QuizzesPage() {
     if (!selectionReady || studentsData.length === 0) return;
     setExporting(true);
     try {
-      const rows = studentsData.map((s) => {
+      const rows = studentsData.map((s, i) => {
         const t = totalFor(s._id);
         const percent = t ? percentageOf(t.obtained, t.total) : null;
         return {
-          serial: "",
+          serial: String(i + 1),
           name: s.name,
           position: positionMap.get(s._id) ?? "",
           cells: quizColumns.map((c) => {
@@ -176,7 +176,12 @@ export default function QuizzesPage() {
           total: t ? `${t.obtained}/${t.total}` : "",
           percent: percent !== null ? `${percent}%` : "",
           grade: percent !== null ? gradeFor(percent).grade : "",
+          isFailed: percent !== null && percent < 50,
         };
+      });
+      const rowStyles: { [rowIndex: number]: { fillColor: number[] } } = {};
+      rows.forEach((r, i) => {
+        if (r.isFailed) rowStyles[i] = { fillColor: [255, 220, 220] };
       });
       const columns: ExportColumn<(typeof rows)[number]>[] = [
         { header: "S.No", accessor: (r) => r.serial },
@@ -196,7 +201,8 @@ export default function QuizzesPage() {
         `Quiz Marks — ${selectedSubject} — ${selectedClass} Class`,
         columns,
         rows,
-        `quiz-marks-${selectedSubject}-${selectedClass}-class`
+        `quiz-marks-${selectedSubject}-${selectedClass}-class`,
+        { rowStyles }
       );
     } finally {
       setExporting(false);

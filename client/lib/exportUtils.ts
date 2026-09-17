@@ -3,6 +3,10 @@ export interface ExportColumn<T = Record<string, unknown>> {
   accessor: (row: T) => string | number | Date | null | undefined;
 }
 
+export interface ExportOptions<T> {
+  rowStyles?: { [rowIndex: number]: { fillColor: number[] } };
+}
+
 const cleanValue = (value: unknown): string => {
   if (value === null || value === undefined) return "";
   if (value instanceof Date) return value.toISOString().slice(0, 10);
@@ -12,7 +16,7 @@ const cleanValue = (value: unknown): string => {
 const toRows = <T>(data: T[], columns: ExportColumn<T>[]): string[][] =>
   data.map((row) => columns.map((col) => cleanValue(col.accessor(row))));
 
-export const exportPDF = async <T>(title: string, columns: ExportColumn<T>[], data: T[], filename: string): Promise<void> => {
+export const exportPDF = async <T>(title: string, columns: ExportColumn<T>[], data: T[], filename: string, options?: ExportOptions<T>): Promise<void> => {
   const [{ jsPDF }, { default: autoTable }] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
   const doc = new jsPDF({ orientation: "landscape" });
   doc.setFillColor(7, 26, 47);
@@ -29,6 +33,11 @@ export const exportPDF = async <T>(title: string, columns: ExportColumn<T>[], da
     styles: { fontSize: 8, cellPadding: 3 },
     headStyles: { fillColor: [212, 175, 55], textColor: [7, 26, 47], fontStyle: "bold" },
     alternateRowStyles: { fillColor: [248, 250, 252] },
+    didParseCell: (hookData) => {
+      if (options?.rowStyles?.[hookData.row.index]) {
+        hookData.cell.styles.fillColor = options.rowStyles[hookData.row.index].fillColor;
+      }
+    },
   });
 
   doc.save(`${filename}.pdf`);
