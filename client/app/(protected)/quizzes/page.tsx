@@ -445,7 +445,6 @@ export default function QuizzesPage() {
                   <th className="sticky left-0 z-10 bg-navy-deep px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">
                     Student
                   </th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">Position</th>
                   {quizColumns.map((col) => (
                     <th
                       key={col.name}
@@ -467,6 +466,7 @@ export default function QuizzesPage() {
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">Total</th>
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">Percentage</th>
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">Grade</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">Position</th>
                 </tr>
               </thead>
               <tbody>
@@ -477,9 +477,6 @@ export default function QuizzesPage() {
                     </td>
                     <td className="sticky left-0 z-10 bg-navy-deep px-4 py-2.5">
                       <p className="font-medium text-white">{s.name}</p>
-                    </td>
-                    <td className="px-4 py-2.5 text-center font-semibold text-gold">
-                      {positionMap.get(s._id) ?? "—"}
                     </td>
                     {quizColumns.map((col) => {
                       const quiz = quizFor(s._id, col.name);
@@ -549,6 +546,9 @@ export default function QuizzesPage() {
                             ) : (
                               <span className="text-white/25">—</span>
                             )}
+                          </td>
+                          <td className="px-4 py-2.5 text-center font-semibold text-gold">
+                            {positionMap.get(s._id) ?? "—"}
                           </td>
                         </>
                       );
