@@ -128,6 +128,21 @@ export default function QuizzesPage() {
     [quizColumns, quizFor]
   );
 
+  const positionMap = useMemo(() => {
+    const totals = students.map((s) => {
+      const t = totalFor(s._id);
+      return { id: s._id, pct: t ? percentageOf(t.obtained, t.total) : -1 };
+    });
+    totals.sort((a, b) => b.pct - a.pct);
+    const map = new Map<string, number>();
+    let rank = 1;
+    totals.forEach((entry, i) => {
+      if (i > 0 && entry.pct < totals[i - 1].pct) rank = i + 1;
+      map.set(entry.id, rank);
+    });
+    return map;
+  }, [students, totalFor]);
+
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["students", selectedClass, selectedSubject] });
     queryClient.invalidateQueries({ queryKey: ["quizzes", selectedClass, selectedSubject] });
@@ -148,6 +163,7 @@ export default function QuizzesPage() {
         return {
           serial: "",
           name: s.name,
+          position: positionMap.get(s._id) ?? "",
           cells: quizColumns.map((c) => {
             const q = quizFor(s._id, c.name);
             if (!q) return "";
@@ -163,6 +179,7 @@ export default function QuizzesPage() {
       const columns: ExportColumn<(typeof rows)[number]>[] = [
         { header: "S.No", accessor: (r) => r.serial },
         { header: "Student", accessor: (r) => r.name },
+        { header: "Position", accessor: (r) => r.position },
         ...quizColumns.map(
           (c, i): ExportColumn<(typeof rows)[number]> => ({
             header: `${c.name} (${c.total})`,
@@ -182,7 +199,7 @@ export default function QuizzesPage() {
     } finally {
       setExporting(false);
     }
-  }, [selectionReady, studentsQuery.data, quizColumns, quizFor, totalFor, selectedSubject, selectedClass]);
+  }, [selectionReady, studentsQuery.data, quizColumns, quizFor, totalFor, positionMap, selectedSubject, selectedClass]);
 
   const openColumnModal = useCallback(() => {
     setColumnModalOpen(true);
@@ -428,6 +445,7 @@ export default function QuizzesPage() {
                   <th className="sticky left-0 z-10 bg-navy-deep px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">
                     Student
                   </th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">Position</th>
                   {quizColumns.map((col) => (
                     <th
                       key={col.name}
@@ -459,6 +477,9 @@ export default function QuizzesPage() {
                     </td>
                     <td className="sticky left-0 z-10 bg-navy-deep px-4 py-2.5">
                       <p className="font-medium text-white">{s.name}</p>
+                    </td>
+                    <td className="px-4 py-2.5 text-center font-semibold text-gold">
+                      {positionMap.get(s._id) ?? "—"}
                     </td>
                     {quizColumns.map((col) => {
                       const quiz = quizFor(s._id, col.name);
@@ -536,7 +557,7 @@ export default function QuizzesPage() {
                 ))}
                 {students.length === 0 && (
                   <tr>
-                    <td colSpan={quizColumns.length + 4} className="px-4 py-10 text-center text-sm text-white/40">
+                    <td colSpan={quizColumns.length + 5} className="px-4 py-10 text-center text-sm text-white/40">
                       <Users size={20} className="mx-auto mb-2 opacity-40" />
                       No students in {selectedClass} class yet
                     </td>

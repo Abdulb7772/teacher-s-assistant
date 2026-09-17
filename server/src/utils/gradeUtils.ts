@@ -1,10 +1,11 @@
 export const GRADE_BANDS = [
-  { min: 90, grade: "A+" },
-  { min: 85, grade: "A" },
-  { min: 80, grade: "B+" },
-  { min: 75, grade: "B" },
-  { min: 70, grade: "C+" },
-  { min: 65, grade: "C" },
+  { min: 85, grade: "A+" },
+  { min: 80, grade: "A" },
+  { min: 75, grade: "B+" },
+  { min: 70, grade: "B" },
+  { min: 65, grade: "C+" },
+  { min: 60, grade: "C" },
+  { min: 55, grade: "D+" },
   { min: 50, grade: "D" },
   { min: 0, grade: "F" },
 ];

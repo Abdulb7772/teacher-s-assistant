@@ -1,10 +1,11 @@
 const GRADE_BANDS = [
-  { min: 90, grade: "A+", color: "success" },
-  { min: 85, grade: "A", color: "success" },
-  { min: 80, grade: "B+", color: "gold" },
-  { min: 75, grade: "B", color: "gold" },
-  { min: 70, grade: "C+", color: "gold" },
-  { min: 65, grade: "C", color: "gold" },
+  { min: 85, grade: "A+", color: "success" },
+  { min: 80, grade: "A", color: "success" },
+  { min: 75, grade: "B+", color: "gold" },
+  { min: 70, grade: "B", color: "gold" },
+  { min: 65, grade: "C+", color: "gold" },
+  { min: 60, grade: "C", color: "gold" },
+  { min: 55, grade: "D+", color: "danger" },
   { min: 50, grade: "D", color: "danger" },
   { min: 0, grade: "F", color: "danger" },
 ] as const;
