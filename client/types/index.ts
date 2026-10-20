@@ -93,6 +93,7 @@ export interface Paper {
   fileUrl: string;
   publicId: string;
   resourceType: string;
+  pages?: number;
   originalName: string;
   mimeType: string;
   size: number;

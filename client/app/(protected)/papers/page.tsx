@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { CalendarDays, Eye, FileText, Pencil, Plus, Trash2, Upload } from "lucide-react";
+import { CalendarDays, ExternalLink, Eye, FileText, Pencil, Plus, Trash2, Upload } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
@@ -21,6 +21,9 @@ import { useSubjectsQuery, useClassesQuery } from "@/features/meta/useMetaQuerie
 const today = (): string => new Date().toLocaleDateString("en-CA");
 const toDateInput = (value: string | null): string => (value ? value.slice(0, 10) : "");
 
+const pageImageUrl = (fileUrl: string, page: number): string =>
+  fileUrl.replace("/upload/", `/upload/pg_${page}/`).replace(/\.pdf$/i, ".jpg");
+
 export default function PapersPage() {
   const queryClient = useQueryClient();
   const [selectedTermId, setSelectedTermId] = useState<string | null>(null);
@@ -29,6 +32,7 @@ export default function PapersPage() {
   const [editingTerm, setEditingTerm] = useState<Term | null>(null);
   const [termToDelete, setTermToDelete] = useState<Term | null>(null);
   const [paperToDelete, setPaperToDelete] = useState<Paper | null>(null);
+  const [paperToView, setPaperToView] = useState<Paper | null>(null);
 
   const [termName, setTermName] = useState("");
   const [startDate, setStartDate] = useState(today());
@@ -133,6 +137,7 @@ export default function PapersPage() {
         fileUrl: uploaded.secure_url,
         publicId: uploaded.public_id,
         resourceType: uploaded.resource_type,
+        pages: uploaded.pages ?? 1,
         originalName: file.name,
         mimeType: "application/pdf",
         size: uploaded.bytes,
@@ -297,14 +302,12 @@ export default function PapersPage() {
                       <td className="px-4 py-3 text-white/60">{formatDate(paper.createdAt)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
-                          <a
-                            href={paper.fileUrl}
-                            target="_blank"
-                            rel="noreferrer"
+                          <button
+                            onClick={() => setPaperToView(paper)}
                             className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-gold transition-colors hover:bg-gold/10"
                           >
                             <Eye size={14} /> View
-                          </a>
+                          </button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -419,6 +422,52 @@ export default function PapersPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(paperToView)}
+        onClose={() => setPaperToView(null)}
+        title={paperToView?.title}
+        subtitle={
+          paperToView
+            ? [paperToView.subject, paperToView.class].filter(Boolean).join(" · ") || paperToView.originalName
+            : undefined
+        }
+        size="lg"
+        footer={
+          paperToView ? (
+            <a
+              href={paperToView.fileUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-gold/60 px-5 text-sm font-semibold text-gold transition-colors hover:bg-gold/10"
+            >
+              <ExternalLink size={16} /> Open PDF
+            </a>
+          ) : undefined
+        }
+      >
+        {paperToView &&
+          (paperToView.resourceType === "image" ? (
+            <div className="space-y-3">
+              {Array.from({ length: Math.max(1, paperToView.pages ?? 1) }, (_, index) => index + 1).map((page) => (
+                // eslint-disable-next-line @next/next/no-img-element -- page transforms have no known dimensions
+                <img
+                  key={page}
+                  src={pageImageUrl(paperToView.fileUrl, page)}
+                  alt={`${paperToView.title} — page ${page}`}
+                  loading={page === 1 ? "eager" : "lazy"}
+                  className="w-full rounded-lg border border-white/10 bg-white"
+                />
+              ))}
+            </div>
+          ) : (
+            <iframe
+              src={paperToView.fileUrl}
+              title={paperToView.title}
+              className="h-[70vh] w-full rounded-lg border border-white/10 bg-white"
+            />
+          ))}
       </Modal>
 
       <ConfirmDialog

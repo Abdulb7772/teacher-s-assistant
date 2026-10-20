@@ -98,6 +98,7 @@ export const uploadPaper = asyncHandler(async (req: Request, res: Response) => {
     fileUrl: req.body.fileUrl,
     publicId: req.body.publicId,
     resourceType: req.body.resourceType || "image",
+    pages: Number(req.body.pages) || 1,
     originalName: req.body.originalName,
     mimeType: req.body.mimeType,
     size: req.body.size,

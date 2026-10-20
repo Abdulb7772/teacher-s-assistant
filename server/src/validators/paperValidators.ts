@@ -21,6 +21,7 @@ export const paperValidators = [
     .withMessage("Paper must be a PDF stored in Cloudinary"),
   body("publicId").trim().notEmpty().withMessage("Missing Cloudinary public id"),
   body("resourceType").optional({ values: "falsy" }).isIn(["image", "raw"]),
+  body("pages").optional({ values: "falsy" }).isInt({ min: 1 }).withMessage("Invalid page count"),
   body("originalName").trim().notEmpty().withMessage("Missing file name").isLength({ max: 255 }),
   body("mimeType").equals("application/pdf").withMessage("Only PDF files are allowed"),
   body("size").isInt({ min: 1 }).withMessage("Invalid file size"),

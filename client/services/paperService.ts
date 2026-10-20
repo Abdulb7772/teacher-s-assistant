@@ -21,6 +21,7 @@ export interface CloudinaryUpload {
   public_id: string;
   resource_type: string;
   bytes: number;
+  pages?: number;
 }
 
 const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "aq49gwvn";
@@ -52,6 +53,7 @@ export const uploadPaper = (payload: {
   fileUrl: string;
   publicId: string;
   resourceType: string;
+  pages?: number;
   originalName: string;
   mimeType: string;
   size: number;
