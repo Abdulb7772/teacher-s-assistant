@@ -38,9 +38,6 @@ export const uploadPaperFile = async (file: File): Promise<CloudinaryUpload> => 
   const form = new FormData();
   form.append("file", file);
   form.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-  form.append("public_id", `papers/${crypto.randomUUID()}.pdf`);
-  form.append("type", "upload");
-  form.append("access_mode", "public");
 
   const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/raw/upload`, {
     method: "POST",
