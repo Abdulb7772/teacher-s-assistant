@@ -15,7 +15,10 @@ const nextConfig = {
     // Catch-all: every /api/* request proxies to the Express backend.
     // This fixed the 404s for /api/users, /api/subjects and /api/classes,
     // which the previous explicit rewrite list never included.
-    return [{ source: "/api/:path*", destination: `${backend}/api/:path*` }];
+    return [
+      { source: "/api/:path*", destination: `${backend}/api/:path*` },
+      { source: "/uploads/:path*", destination: `${backend}/uploads/:path*` },
+    ];
   },
 };
 

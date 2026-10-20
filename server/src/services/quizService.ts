@@ -68,7 +68,7 @@ export interface QuizSummary {
 }
 
 export const quizSummary = (quizzes: { obtainedMarks: number; totalMarks: number }[]): QuizSummary => {
-  if (!quizzes.length) return { average: 0, percentage: 0, grade: "F" };
+  if (!quizzes.length) return { average: 0, percentage: 0, grade: gradeFor(0) };
   const obtained = quizzes.reduce((sum, q) => sum + q.obtainedMarks, 0);
   const total = quizzes.reduce((sum, q) => sum + q.totalMarks, 0);
   const avg = obtained / quizzes.length;

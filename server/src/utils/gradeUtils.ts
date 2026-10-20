@@ -1,13 +1,15 @@
 export const GRADE_BANDS = [
-  { min: 85, grade: "A+" },
-  { min: 80, grade: "A" },
-  { min: 75, grade: "B+" },
-  { min: 70, grade: "B" },
-  { min: 65, grade: "C+" },
-  { min: 60, grade: "C" },
-  { min: 55, grade: "D+" },
-  { min: 50, grade: "D" },
-  { min: 0, grade: "F" },
+  { min: 95, grade: "A++", gpa: 5.0 },
+  { min: 90, grade: "A+", gpa: 4.7 },
+  { min: 85, grade: "A", gpa: 4.3 },
+  { min: 80, grade: "B++", gpa: 4.0 },
+  { min: 75, grade: "B+", gpa: 3.7 },
+  { min: 70, grade: "B", gpa: 3.3 },
+  { min: 65, grade: "C+", gpa: 3.0 },
+  { min: 60, grade: "C", gpa: 3.0 },
+  { min: 50, grade: "D", gpa: 2.0 },
+  { min: 40, grade: "E", gpa: 1.0 },
+  { min: 0, grade: "U", gpa: 0.0 },
 ];
 
 export const percentage = (obtained: number, total: number): number =>

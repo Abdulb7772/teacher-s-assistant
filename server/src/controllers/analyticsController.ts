@@ -4,6 +4,7 @@ import Student from "../models/Student";
 import Quiz from "../models/Quiz";
 import asyncHandler from "../utils/asyncHandler";
 import { studentPerformanceAggregation, decorateWithGrade, StudentPerformanceBase } from "../services/quizService";
+import { GRADE_BANDS } from "../utils/gradeUtils";
 
 export const analytics = asyncHandler(async (req: Request, res: Response) => {
   // Projections: only the fields each widget needs, cutting payload + doc deserialization cost.
@@ -88,7 +89,7 @@ export const analytics = asyncHandler(async (req: Request, res: Response) => {
     .filter((s) => s.quizCount > 0)
     .sort((a, b) => b.percentage - a.percentage);
 
-  const gradeBuckets = ["A+", "A", "B+", "B", "C+", "C", "D", "F"];
+  const gradeBuckets = GRADE_BANDS.map((band) => band.grade);
   const gradeDistribution = gradeBuckets.map((grade) => ({
     grade,
     count: studentPerformance.filter((s) => s.grade === grade).length,

@@ -3,6 +3,8 @@ import Subject from "../models/Subject";
 import Student from "../models/Student";
 import Quiz from "../models/Quiz";
 import Course from "../models/Course";
+import Paper from "../models/Paper";
+import ExamMark from "../models/ExamMark";
 import ApiError from "../utils/ApiError";
 import asyncHandler from "../utils/asyncHandler";
 
@@ -33,6 +35,8 @@ export const updateSubject = asyncHandler(async (req: Request, res: Response) =>
     Student.updateMany({ subject: previousName }, { $set: { subject: name } }),
     Quiz.updateMany({ subject: previousName }, { $set: { subject: name } }),
     Course.updateMany({ subject: previousName }, { $set: { subject: name } }),
+    Paper.updateMany({ subject: previousName }, { $set: { subject: name } }),
+    ExamMark.updateMany({ subject: previousName }, { $set: { subject: name } }),
   ]);
   res.json({ success: true, message: "Subject updated", data: subject });
 });

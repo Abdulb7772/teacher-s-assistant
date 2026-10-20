@@ -17,7 +17,7 @@ import Modal from "@/components/ui/Modal";
 import PageHeader from "@/components/ui/PageHeader";
 import Pagination from "@/components/ui/Pagination";
 import { SkeletonRows } from "@/components/ui/Skeleton";
-import { gradeFor, percentageOf } from "@/lib/grades";
+import { gradeFor, percentageOf, PASS_PERCENT } from "@/lib/grades";
 import useKeyShortcut from "@/hooks/useKeyShortcut";
 import { exportPDF, type ExportColumn } from "@/lib/exportUtils";
 import type { Quiz, StudentPerformance } from "@/types";
@@ -80,7 +80,7 @@ export default function QuizzesPage() {
     staleTime: 60 * 1000,
   });
 
-  const students = studentsQuery.data?.data ?? [];
+  const students = useMemo(() => studentsQuery.data?.data ?? [], [studentsQuery.data]);
 
   const visibleStudents = students.slice((gridPage - 1) * GRID_PAGE_SIZE, gridPage * GRID_PAGE_SIZE);
   const gridPagination = {
@@ -134,7 +134,7 @@ export default function QuizzesPage() {
         const t = totalFor(s._id);
         return { id: s._id, pct: t ? percentageOf(t.obtained, t.total) : -1 };
       })
-      .filter((e) => e.pct >= 50);
+      .filter((e) => e.pct >= PASS_PERCENT);
     totals.sort((a, b) => b.pct - a.pct);
     const map = new Map<string, number>();
     let rank = 1;
@@ -176,7 +176,7 @@ export default function QuizzesPage() {
           total: t ? `${t.obtained}/${t.total}` : "",
           percent: percent !== null ? `${percent}%` : "",
           grade: percent !== null ? gradeFor(percent).grade : "",
-          isFailed: percent !== null && percent < 50,
+          isFailed: percent !== null && percent < PASS_PERCENT,
         };
       });
       const rowStyles: { [rowIndex: number]: { fillColor: [number, number, number] } } = {};
@@ -448,10 +448,10 @@ export default function QuizzesPage() {
             <table className="w-full min-w-max border-collapse text-sm">
               <thead>
                 <tr className="border-b border-white/10 bg-white/[0.03] text-left">
-                  <th className="sticky left-0 z-10 bg-navy-deep px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">
+                  <th className="sticky left-0 z-20 w-16 bg-navy-deep px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">
                     S.No
                   </th>
-                  <th className="sticky left-0 z-10 bg-navy-deep px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">
+                  <th className="sticky left-16 z-20 bg-navy-deep px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">
                     Student
                   </th>
                   {quizColumns.map((col) => (
@@ -481,10 +481,10 @@ export default function QuizzesPage() {
               <tbody>
                 {visibleStudents.map((s, index) => (
                   <tr key={s._id} className="border-b border-white/5 transition-colors hover:bg-white/[0.04]">
-                    <td className="sticky left-0 z-10 bg-navy-deep px-4 py-2.5 text-center text-sm font-medium text-white/70">
+                    <td className="sticky left-0 z-10 w-16 bg-navy-deep px-4 py-2.5 text-center text-sm font-medium text-white/70">
                       {(gridPage - 1) * GRID_PAGE_SIZE + index + 1}
                     </td>
-                    <td className="sticky left-0 z-10 bg-navy-deep px-4 py-2.5">
+                    <td className="sticky left-16 z-10 bg-navy-deep px-4 py-2.5">
                       <p className="font-medium text-white">{s.name}</p>
                     </td>
                     {quizColumns.map((col) => {
@@ -550,7 +550,7 @@ export default function QuizzesPage() {
                             {percent !== null ? `${percent}%` : "—"}
                           </td>
                           <td className="px-4 py-2.5 text-center font-semibold text-gold">
-                            {t ? (percent !== null && percent < 50 ? "Failed" : (positionMap.get(s._id) ?? "—")) : "—"}
+                            {t ? (percent !== null && percent < PASS_PERCENT ? "Failed" : (positionMap.get(s._id) ?? "—")) : "—"}
                           </td>
                           <td className="px-4 py-2.5 text-center">
                             {percent !== null ? (

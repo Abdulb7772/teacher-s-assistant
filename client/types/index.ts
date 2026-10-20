@@ -76,6 +76,39 @@ export interface QuizSummary {
   grade: string;
 }
 
+export interface Term {
+  _id: string;
+  name: string;
+  startDate: string | null;
+  endDate: string | null;
+  createdAt: string;
+}
+
+export interface Paper {
+  _id: string;
+  termId: string;
+  title: string;
+  subject?: string;
+  class?: string;
+  fileUrl: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  uploadedBy?: string;
+  createdAt: string;
+}
+
+export interface ExamMark {
+  _id: string;
+  termId: string;
+  studentId: string;
+  class?: string;
+  subject: string;
+  totalMarks: number;
+  obtainedMarks: number | null;
+  createdAt: string;
+}
+
 export interface Pagination {
   page: number;
   limit: number;

@@ -61,7 +61,7 @@ function CardTitle({ icon: Icon, children }: { icon: LucideIcon; children: React
 }
 
 const gradeColor = (grade: string): string =>
-  /^A/.test(grade) ? "#22C55E" : /^[BC]/.test(grade) ? "#D4AF37" : "#EF4444";
+  /^A/.test(grade) ? "#22C55E" : /^[BCD]/.test(grade) ? "#D4AF37" : "#EF4444";
 
 export default function AnalyticsPage() {
   const { data, isPending, isError, refetch } = useAnalyticsQuery();
