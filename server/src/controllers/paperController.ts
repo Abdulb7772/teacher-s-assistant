@@ -1,16 +1,39 @@
-import fs from "fs";
-import path from "path";
 import { Request, Response } from "express";
 import Term from "../models/Term";
 import Paper from "../models/Paper";
 import ExamMark from "../models/ExamMark";
 import ApiError from "../utils/ApiError";
 import asyncHandler from "../utils/asyncHandler";
-import { UPLOAD_DIR } from "../middleware/upload";
 
-const removeStoredFile = (fileUrl: string): void => {
-  // fileUrl is always `/uploads/<stored-name>`; basename prevents path traversal.
-  fs.unlink(path.join(UPLOAD_DIR, path.basename(fileUrl)), () => undefined);
+const cloudName = (): string => process.env.CLOUDINARY_CLOUD_NAME || "aq49gwvn";
+
+// Uploads use the unsigned preset from the browser. Destroying assets requires
+// API credentials; without them the app record is removed but the asset stays.
+const destroyCloudinaryAsset = async (publicId: string, resourceType: string): Promise<void> => {
+  if (!publicId) return;
+
+  const apiKey = process.env.CLOUDINARY_API_KEY;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+  if (!apiKey || !apiSecret) {
+    console.warn(`[Cloudinary] No API key/secret set; left asset ${publicId} in Cloudinary`);
+    return;
+  }
+
+  try {
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName()}/${resourceType}/destroy`, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${apiKey}:${apiSecret}`).toString("base64")}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ public_id: publicId }),
+    });
+    if (!response.ok) {
+      console.error(`[Cloudinary] Failed to delete ${publicId}: ${await response.text()}`);
+    }
+  } catch (error) {
+    console.error(`[Cloudinary] Failed to delete ${publicId}:`, error);
+  }
 };
 
 export const getTerms = asyncHandler(async (_req: Request, res: Response) => {
@@ -27,12 +50,24 @@ export const createTerm = asyncHandler(async (req: Request, res: Response) => {
   res.status(201).json({ success: true, message: "Term created", data: term });
 });
 
+export const updateTerm = asyncHandler(async (req: Request, res: Response) => {
+  const term = await Term.findById(req.params.id);
+  if (!term) throw new ApiError(404, "Term not found");
+
+  term.name = String(req.body.name).trim();
+  term.startDate = req.body.startDate || null;
+  term.endDate = req.body.endDate || null;
+  await term.save();
+
+  res.json({ success: true, message: "Term updated", data: term });
+});
+
 export const deleteTerm = asyncHandler(async (req: Request, res: Response) => {
   const term = await Term.findById(req.params.id);
   if (!term) throw new ApiError(404, "Term not found");
 
-  const papers = await Paper.find({ termId: term._id }, "fileUrl").lean();
-  papers.forEach((paper) => removeStoredFile(paper.fileUrl));
+  const papers = await Paper.find({ termId: term._id }, "publicId resourceType").lean();
+  await Promise.allSettled(papers.map((paper) => destroyCloudinaryAsset(paper.publicId, paper.resourceType)));
 
   await Promise.all([
     Paper.deleteMany({ termId: term._id }),
@@ -52,23 +87,20 @@ export const getPapers = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const uploadPaper = asyncHandler(async (req: Request, res: Response) => {
-  if (!req.file) throw new ApiError(400, "Please choose a file to upload");
-
   const term = await Term.findById(req.body.termId);
-  if (!term) {
-    removeStoredFile(req.file.filename);
-    throw new ApiError(404, "Term not found");
-  }
+  if (!term) throw new ApiError(404, "Term not found");
 
   const paper = await Paper.create({
     termId: term._id,
     title: String(req.body.title).trim(),
     subject: req.body.subject || undefined,
     class: req.body.class || undefined,
-    fileUrl: `/uploads/${req.file.filename}`,
-    originalName: req.file.originalname,
-    mimeType: req.file.mimetype,
-    size: req.file.size,
+    fileUrl: req.body.fileUrl,
+    publicId: req.body.publicId,
+    resourceType: req.body.resourceType || "image",
+    originalName: req.body.originalName,
+    mimeType: req.body.mimeType,
+    size: req.body.size,
     uploadedBy: req.user?.name,
   });
 
@@ -78,6 +110,6 @@ export const uploadPaper = asyncHandler(async (req: Request, res: Response) => {
 export const deletePaper = asyncHandler(async (req: Request, res: Response) => {
   const paper = await Paper.findByIdAndDelete(req.params.id);
   if (!paper) throw new ApiError(404, "Paper not found");
-  removeStoredFile(paper.fileUrl);
+  await destroyCloudinaryAsset(paper.publicId, paper.resourceType);
   res.json({ success: true, message: "Paper deleted" });
 });

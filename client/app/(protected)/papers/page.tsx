@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { CalendarDays, Download, FileText, Plus, Trash2, Upload } from "lucide-react";
+import { CalendarDays, Eye, FileText, Pencil, Plus, Trash2, Upload } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
@@ -19,12 +19,14 @@ import * as paperService from "@/services/paperService";
 import { useSubjectsQuery, useClassesQuery } from "@/features/meta/useMetaQueries";
 
 const today = (): string => new Date().toLocaleDateString("en-CA");
+const toDateInput = (value: string | null): string => (value ? value.slice(0, 10) : "");
 
 export default function PapersPage() {
   const queryClient = useQueryClient();
   const [selectedTermId, setSelectedTermId] = useState<string | null>(null);
   const [termModalOpen, setTermModalOpen] = useState(false);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [editingTerm, setEditingTerm] = useState<Term | null>(null);
   const [termToDelete, setTermToDelete] = useState<Term | null>(null);
   const [paperToDelete, setPaperToDelete] = useState<Paper | null>(null);
 
@@ -68,6 +70,45 @@ export default function PapersPage() {
     onError: (err) => toast.error(err.message),
   });
 
+  const updateTermMutation = useMutation({
+    mutationFn: () => {
+      if (!editingTerm) throw new Error("No term selected");
+      return paperService.updateTerm(editingTerm._id, {
+        name: termName.trim(),
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      });
+    },
+    onSuccess: (res) => {
+      toast.success("Term updated");
+      queryClient.invalidateQueries({ queryKey: ["terms"] });
+      queryClient.invalidateQueries({ queryKey: ["papers"] });
+      setSelectedTermId(res.data._id);
+      setTermModalOpen(false);
+      setEditingTerm(null);
+      setTermName("");
+      setStartDate(today());
+      setEndDate("");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const openNewTerm = () => {
+    setEditingTerm(null);
+    setTermName("");
+    setStartDate(today());
+    setEndDate("");
+    setTermModalOpen(true);
+  };
+
+  const openEditTerm = (term: Term) => {
+    setEditingTerm(term);
+    setTermName(term.name);
+    setStartDate(toDateInput(term.startDate));
+    setEndDate(toDateInput(term.endDate));
+    setTermModalOpen(true);
+  };
+
   const deleteTermMutation = useMutation({
     mutationFn: (id: string) => paperService.deleteTerm(id),
     onSuccess: (_res, id) => {
@@ -81,14 +122,20 @@ export default function PapersPage() {
   });
 
   const uploadMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!activeTermId || !file) throw new Error("Choose a file to upload");
+      const uploaded = await paperService.uploadPaperFile(file);
       return paperService.uploadPaper({
         termId: activeTermId,
         title: title.trim(),
         subject: subject || undefined,
         class: className || undefined,
-        file,
+        fileUrl: uploaded.secure_url,
+        publicId: uploaded.public_id,
+        resourceType: uploaded.resource_type,
+        originalName: file.name,
+        mimeType: "application/pdf",
+        size: uploaded.bytes,
       });
     },
     onSuccess: () => {
@@ -122,7 +169,7 @@ export default function PapersPage() {
         breadcrumbs={[{ label: "Dashboard", to: "/dashboard" }, { label: "Papers" }]}
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" icon={Plus} onClick={() => setTermModalOpen(true)}>
+            <Button variant="outline" size="sm" icon={Plus} onClick={openNewTerm}>
               New Term
             </Button>
             <Button
@@ -161,6 +208,13 @@ export default function PapersPage() {
               {term.name}
             </button>
             <button
+              onClick={() => openEditTerm(term)}
+              className="px-2 py-2 text-white/30 transition-colors hover:bg-gold/10 hover:text-gold"
+              title={`Edit ${term.name}`}
+            >
+              <Pencil size={13} />
+            </button>
+            <button
               onClick={() => setTermToDelete(term)}
               className="rounded-r-xl px-2 py-2 text-white/30 transition-colors hover:bg-danger/15 hover:text-red-400"
               title={`Delete ${term.name}`}
@@ -182,7 +236,7 @@ export default function PapersPage() {
             title="Create a term first"
             description="Papers are filed under a term. Create one, then upload its papers."
             action={
-              <Button icon={Plus} onClick={() => setTermModalOpen(true)}>
+              <Button icon={Plus} onClick={openNewTerm}>
                 New Term
               </Button>
             }
@@ -249,7 +303,7 @@ export default function PapersPage() {
                             rel="noreferrer"
                             className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-gold transition-colors hover:bg-gold/10"
                           >
-                            <Download size={14} /> Open
+                            <Eye size={14} /> View
                           </a>
                           <Button
                             variant="ghost"
@@ -272,8 +326,11 @@ export default function PapersPage() {
 
       <Modal
         open={termModalOpen}
-        onClose={() => setTermModalOpen(false)}
-        title="New Term"
+        onClose={() => {
+          setTermModalOpen(false);
+          setEditingTerm(null);
+        }}
+        title={editingTerm ? "Edit Term" : "New Term"}
         subtitle="Terms group papers and exam marks together"
         size="sm"
       >
@@ -283,7 +340,8 @@ export default function PapersPage() {
           onSubmit={(event) => {
             event.preventDefault();
             if (!termName.trim()) return toast.error("Term name is required");
-            createTermMutation.mutate();
+            if (editingTerm) updateTermMutation.mutate();
+            else createTermMutation.mutate();
           }}
         >
           <Input label="Term Name" placeholder="e.g. First Term 2026" value={termName} onChange={(e) => setTermName(e.target.value)} autoFocus />
@@ -292,11 +350,18 @@ export default function PapersPage() {
             <Input label="End Date (optional)" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="ghost" onClick={() => setTermModalOpen(false)}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setTermModalOpen(false);
+                setEditingTerm(null);
+              }}
+            >
               Cancel
             </Button>
-            <Button type="submit" loading={createTermMutation.isPending}>
-              Create Term
+            <Button type="submit" loading={editingTerm ? updateTermMutation.isPending : createTermMutation.isPending}>
+              {editingTerm ? "Save Changes" : "Create Term"}
             </Button>
           </div>
         </form>
@@ -339,11 +404,11 @@ export default function PapersPage() {
             <input
               key={fileInputKey}
               type="file"
-              accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png,.webp"
+              accept=".pdf,application/pdf"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               className="input-field py-2 text-white/70 file:mr-3 file:rounded-lg file:border-0 file:bg-gold/15 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-gold"
             />
-            <p className="mt-1.5 text-xs text-white/35">PDF, Word, PowerPoint or image · up to 20 MB</p>
+            <p className="mt-1.5 text-xs text-white/35">PDF only · up to 20 MB</p>
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="ghost" onClick={() => setUploadModalOpen(false)}>

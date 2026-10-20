@@ -31,6 +31,15 @@ export const updateExamMark = (id: string, payload: ExamMarkPayload): Promise<Ap
 export const createExamColumn = (payload: ExamColumnPayload): Promise<ApiResponse<{ created: number }>> =>
   api.post("/exam-marks/column", payload).then((r) => r.data);
 
+export const updateExamColumn = (payload: {
+  termId: string;
+  className: string;
+  subject: string;
+  newSubject: string;
+  totalMarks: number;
+}): Promise<ApiResponse<{ updated: number }>> =>
+  api.put("/exam-marks/column", payload).then((r) => r.data);
+
 export const deleteExamColumn = (payload: {
   termId: string;
   className: string;

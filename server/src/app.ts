@@ -1,4 +1,3 @@
-import path from "path";
 import express, { Application, NextFunction, Request, Response } from "express";
 import helmet from "helmet";
 import cors from "cors";
@@ -45,8 +44,6 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
   message: { success: false, message: "Too many authentication attempts, please try again later" },
 });
-
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 app.get("/api/health", (req: Request, res: Response) =>
   res.json({ success: true, status: "ok", uptime: process.uptime() })

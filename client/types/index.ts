@@ -91,6 +91,8 @@ export interface Paper {
   subject?: string;
   class?: string;
   fileUrl: string;
+  publicId: string;
+  resourceType: string;
   originalName: string;
   mimeType: string;
   size: number;

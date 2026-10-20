@@ -11,6 +11,19 @@ export const paperValidators = [
   body("title").trim().notEmpty().withMessage("Paper title is required").isLength({ max: 200 }),
   body("subject").optional({ values: "falsy" }).trim().isLength({ max: 60 }),
   body("class").optional({ values: "falsy" }).trim().isLength({ max: 30 }),
+  body("fileUrl")
+    .isURL({ protocols: ["https"], require_protocol: true })
+    .withMessage("Invalid file URL")
+    .custom((value: string) => {
+      const cloudName = process.env.CLOUDINARY_CLOUD_NAME || "aq49gwvn";
+      return value.startsWith(`https://res.cloudinary.com/${cloudName}/`) && /\.pdf(\?|$)/i.test(value);
+    })
+    .withMessage("Paper must be a PDF stored in Cloudinary"),
+  body("publicId").trim().notEmpty().withMessage("Missing Cloudinary public id"),
+  body("resourceType").optional({ values: "falsy" }).isIn(["image", "raw"]),
+  body("originalName").trim().notEmpty().withMessage("Missing file name").isLength({ max: 255 }),
+  body("mimeType").equals("application/pdf").withMessage("Only PDF files are allowed"),
+  body("size").isInt({ min: 1 }).withMessage("Invalid file size"),
 ];
 
 export const paperIdParam = [param("id").isMongoId().withMessage("Invalid paper id")];

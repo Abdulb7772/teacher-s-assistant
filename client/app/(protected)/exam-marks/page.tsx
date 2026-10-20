@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { CalendarDays, FileDown, GraduationCap, ListChecks, Plus, Trash2, Users } from "lucide-react";
+import { CalendarDays, FileDown, GraduationCap, ListChecks, Pencil, Plus, Trash2, Users } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
@@ -49,6 +49,7 @@ export default function ExamMarksPage() {
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [gridPage, setGridPage] = useState(1);
   const [subjectModalOpen, setSubjectModalOpen] = useState(false);
+  const [editingColumn, setEditingColumn] = useState<{ subject: string; total: number } | null>(null);
   const [columnToDelete, setColumnToDelete] = useState<{ subject: string } | null>(null);
   const [editing, setEditing] = useState<EditingCell | null>(null);
   const [subjectInput, setSubjectInput] = useState("");
@@ -174,6 +175,7 @@ export default function ExamMarksPage() {
       }),
     onSuccess: () => {
       toast.success("Subject added — click cells to enter marks");
+      setSelectedSubject(subjectInput.trim());
       setSubjectModalOpen(false);
       setSubjectInput("");
       setTotalInput("100");
@@ -181,6 +183,48 @@ export default function ExamMarksPage() {
     },
     onError: (err) => toast.error(err.message),
   });
+
+  const updateColumnMutation = useMutation({
+    mutationFn: () => {
+      if (!editingColumn) throw new Error("No subject selected");
+      return examService.updateExamColumn({
+        termId: activeTermId as string,
+        className: selectedClass as string,
+        subject: editingColumn.subject,
+        newSubject: subjectInput.trim(),
+        totalMarks: Number(totalInput),
+      });
+    },
+    onSuccess: () => {
+      toast.success("Subject updated");
+      setSelectedSubject(subjectInput.trim());
+      setEditingColumn(null);
+      setSubjectModalOpen(false);
+      setSubjectInput("");
+      setTotalInput("100");
+      invalidateMarks();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const openAddSubject = () => {
+    setEditingColumn(null);
+    setSubjectInput("");
+    setTotalInput("100");
+    setSubjectModalOpen(true);
+  };
+
+  const openEditSubject = (column: { subject: string; total: number }) => {
+    setEditingColumn(column);
+    setSubjectInput(column.subject);
+    setTotalInput(String(column.total));
+    setSubjectModalOpen(true);
+  };
+
+  const toggleSubjectModal = (open: boolean) => {
+    setSubjectModalOpen(open);
+    if (!open) setEditingColumn(null);
+  };
 
   const deleteColumnMutation = useMutation({
     mutationFn: (column: { subject: string }) =>
@@ -300,6 +344,47 @@ export default function ExamMarksPage() {
       </td>
     );
   };
+
+  const exportSubject = useCallback(async (): Promise<void> => {
+    const column = activeSubjectColumn;
+    if (!selectionReady || !column || students.length === 0) return;
+    setExporting(true);
+    try {
+      const rows = students.map((student, index) => {
+        const mark = markFor(student._id, column.subject);
+        const hasMarks = mark && mark.obtainedMarks !== null && mark.obtainedMarks !== undefined;
+        const percent = hasMarks ? percentageOf(Number(mark.obtainedMarks), Number(mark.totalMarks)) : null;
+        return {
+          serial: String(index + 1),
+          name: student.name,
+          marks: hasMarks ? `${mark.obtainedMarks}/${mark.totalMarks}` : "",
+          percentage: percent !== null ? `${percent}%` : "",
+          grade: percent !== null ? gradeFor(percent).grade : "",
+          isFailed: percent !== null && percent < PASS_PERCENT,
+        };
+      });
+      const rowStyles: { [rowIndex: number]: { fillColor: [number, number, number] } } = {};
+      rows.forEach((row, index) => {
+        if (row.isFailed) rowStyles[index] = { fillColor: [255, 220, 220] };
+      });
+      const columns: ExportColumn<(typeof rows)[number]>[] = [
+        { header: "S.No", accessor: (row) => row.serial },
+        { header: "Student", accessor: (row) => row.name },
+        { header: `${column.subject} (${column.total})`, accessor: (row) => row.marks },
+        { header: "Percentage", accessor: (row) => row.percentage },
+        { header: "Grade", accessor: (row) => row.grade },
+      ];
+      await exportPDF(
+        `${column.subject} — ${activeTerm?.name ?? ""} — ${selectedClass} Class`,
+        columns,
+        rows,
+        `${column.subject.replace(/[^\w-]+/g, "-")}-${activeTerm?.name ?? "term"}-${selectedClass}-class`,
+        { rowStyles }
+      );
+    } finally {
+      setExporting(false);
+    }
+  }, [selectionReady, activeSubjectColumn, students, markFor, activeTerm, selectedClass]);
 
   const exportFinalList = useCallback(async (): Promise<void> => {
     if (!selectionReady || students.length === 0) return;
@@ -450,12 +535,17 @@ export default function ExamMarksPage() {
             {activeTerm?.name} · {selectedClass}
           </span>
           <div className="ml-auto flex items-center gap-2">
-            {mode === "all" && (
-              <Button variant="outline" size="sm" icon={FileDown} onClick={exportFinalList} loading={exporting} disabled={students.length === 0}>
-                Export PDF
-              </Button>
-            )}
-            <Button variant="outline" size="sm" icon={Plus} onClick={() => setSubjectModalOpen(true)}>
+            <Button
+              variant="outline"
+              size="sm"
+              icon={FileDown}
+              onClick={mode === "all" ? exportFinalList : exportSubject}
+              loading={exporting}
+              disabled={students.length === 0 || subjectColumns.length === 0}
+            >
+              {mode === "all" ? "Download All Subjects PDF" : "Download Subject PDF"}
+            </Button>
+            <Button variant="outline" size="sm" icon={Plus} onClick={openAddSubject}>
               Add Subject
             </Button>
           </div>
@@ -501,7 +591,7 @@ export default function ExamMarksPage() {
             title="No subjects added"
             description={`Add the first subject to start entering ${selectedClass} exam marks for ${activeTerm?.name ?? "this term"}.`}
             action={
-              <Button icon={Plus} onClick={() => setSubjectModalOpen(true)}>
+              <Button icon={Plus} onClick={openAddSubject}>
                 Add Subject
               </Button>
             }
@@ -524,7 +614,26 @@ export default function ExamMarksPage() {
                 }))}
               />
             </div>
-            <p className="text-xs text-white/45">Click any mark to edit it</p>
+            <div className="flex items-center gap-3 text-xs text-white/45">
+              <span>Click any mark to edit it</span>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={Pencil}
+                  onClick={() => openEditSubject(selectedColumn)}
+                  title={`Edit ${selectedColumn.subject}`}
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={Trash2}
+                  onClick={() => setColumnToDelete({ subject: selectedColumn.subject })}
+                  className="text-red-400 hover:bg-danger/15"
+                  title={`Delete ${selectedColumn.subject}`}
+                />
+              </div>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-max border-collapse text-sm">
@@ -607,13 +716,22 @@ export default function ExamMarksPage() {
                       {column.subject}
                       <span className="mt-1 flex items-center justify-between gap-2">
                         <span className="text-[10px] font-normal normal-case text-white/35">out of {column.total}</span>
-                        <button
-                          onClick={() => setColumnToDelete({ subject: column.subject })}
-                          className="rounded-md p-1 text-white/25 transition-colors hover:bg-danger/15 hover:text-red-400"
-                          title={`Delete ${column.subject} column`}
-                        >
-                          <Trash2 size={13} />
-                        </button>
+                        <span className="flex items-center gap-0.5">
+                          <button
+                            onClick={() => openEditSubject(column)}
+                            className="rounded-md p-1 text-white/25 transition-colors hover:bg-gold/10 hover:text-gold"
+                            title={`Edit ${column.subject} column`}
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          <button
+                            onClick={() => setColumnToDelete({ subject: column.subject })}
+                            className="rounded-md p-1 text-white/25 transition-colors hover:bg-danger/15 hover:text-red-400"
+                            title={`Delete ${column.subject} column`}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </span>
                       </span>
                     </th>
                   ))}
@@ -675,9 +793,13 @@ export default function ExamMarksPage() {
 
       <Modal
         open={subjectModalOpen}
-        onClose={() => setSubjectModalOpen(false)}
-        title="Add Subject"
-        subtitle={`Adds a marks column for every student in ${selectedClass ?? ""} · ${activeTerm?.name ?? ""}`}
+        onClose={() => toggleSubjectModal(false)}
+        title={editingColumn ? "Edit Subject" : "Add Subject"}
+        subtitle={
+          editingColumn
+            ? `Updates ${editingColumn.subject} for every student in ${selectedClass ?? ""} · ${activeTerm?.name ?? ""}`
+            : `Adds a marks column for every student in ${selectedClass ?? ""} · ${activeTerm?.name ?? ""}`
+        }
         size="sm"
       >
         <form
@@ -687,10 +809,14 @@ export default function ExamMarksPage() {
             event.preventDefault();
             if (!subjectInput.trim()) return toast.error("Subject is required");
             if (!Number(totalInput) || Number(totalInput) < 1) return toast.error("Total marks must be at least 1");
-            if (subjectColumns.some((column) => column.subject.toLowerCase() === subjectInput.trim().toLowerCase())) {
-              return toast.error("This subject already has a column");
-            }
-            createColumnMutation.mutate();
+            const duplicate = subjectColumns.some(
+              (column) =>
+                column.subject.toLowerCase() === subjectInput.trim().toLowerCase() &&
+                column.subject !== editingColumn?.subject
+            );
+            if (duplicate) return toast.error("This subject already has a column");
+            if (editingColumn) updateColumnMutation.mutate();
+            else createColumnMutation.mutate();
           }}
         >
           <Input
@@ -714,11 +840,11 @@ export default function ExamMarksPage() {
             onChange={(event) => setTotalInput(event.target.value)}
           />
           <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="ghost" onClick={() => setSubjectModalOpen(false)}>
+            <Button type="button" variant="ghost" onClick={() => toggleSubjectModal(false)}>
               Cancel
             </Button>
-            <Button type="submit" loading={createColumnMutation.isPending}>
-              Add Subject
+            <Button type="submit" loading={editingColumn ? updateColumnMutation.isPending : createColumnMutation.isPending}>
+              {editingColumn ? "Save Changes" : "Add Subject"}
             </Button>
           </div>
         </form>

@@ -45,11 +45,6 @@ const errorHandler = (err: unknown, req: Request, res: Response, next: NextFunct
     statusCode = 401;
     message = "Invalid token, please sign in again";
   }
-  if (error.name === "MulterError") {
-    statusCode = 400;
-    message = error.message;
-  }
-
   res.status(statusCode).json({
     success: false,
     message,

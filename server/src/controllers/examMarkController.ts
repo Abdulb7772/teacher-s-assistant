@@ -72,6 +72,30 @@ export const updateExamMark = asyncHandler(async (req: Request, res: Response) =
   res.json({ success: true, message: "Marks saved", data: mark });
 });
 
+export const updateExamSubjectColumn = asyncHandler(async (req: Request, res: Response) => {
+  const { termId, className, subject, newSubject, totalMarks } = req.body as {
+    termId: string;
+    className: string;
+    subject: string;
+    newSubject: string;
+    totalMarks: number;
+  };
+  const updatedSubject = String(newSubject).trim();
+
+  if (updatedSubject !== subject) {
+    const existing = await ExamMark.findOne({ termId, class: className, subject: updatedSubject });
+    if (existing) throw new ApiError(409, `${updatedSubject} already has a marks column for this class`);
+  }
+
+  const result = await ExamMark.updateMany(
+    { termId, class: className, subject },
+    { $set: { subject: updatedSubject, totalMarks } }
+  );
+  if (!result.matchedCount) throw new ApiError(404, "Subject column not found");
+
+  res.json({ success: true, message: "Subject updated", data: { updated: result.modifiedCount } });
+});
+
 export const deleteExamSubjectColumn = asyncHandler(async (req: Request, res: Response) => {
   const { termId, className, subject } = req.body as { termId: string; className: string; subject: string };
   const deleted = await ExamMark.deleteMany({ termId, class: className, subject });

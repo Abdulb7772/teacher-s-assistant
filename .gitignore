@@ -25,7 +25,3 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
-
-# Uploads (keep folder, ignore contents)
-server/uploads/*
-!server/uploads/.gitkeep

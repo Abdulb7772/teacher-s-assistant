@@ -15,6 +15,14 @@ export const examColumnValidators = [
   body("totalMarks").isFloat({ min: 1 }).withMessage("Total marks must be a positive number"),
 ];
 
+export const examColumnUpdateValidators = [
+  body("termId").isMongoId().withMessage("Select a valid term"),
+  body("className").trim().notEmpty().withMessage("Class is required").isLength({ max: 30 }),
+  body("subject").trim().notEmpty().withMessage("Subject is required").isLength({ max: 60 }),
+  body("newSubject").trim().notEmpty().withMessage("Subject is required").isLength({ max: 60 }),
+  body("totalMarks").isFloat({ min: 1 }).withMessage("Total marks must be a positive number"),
+];
+
 export const examColumnDeleteValidators = [
   body("termId").isMongoId().withMessage("Select a valid term"),
   body("className").trim().notEmpty().withMessage("Class is required"),

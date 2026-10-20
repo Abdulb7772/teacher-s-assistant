@@ -6,6 +6,8 @@ export interface IPaper extends Document {
   subject?: string;
   class?: string;
   fileUrl: string;
+  publicId: string;
+  resourceType: string;
   originalName: string;
   mimeType: string;
   size: number;
@@ -21,6 +23,8 @@ const paperSchema = new Schema<IPaper>(
     subject: { type: String, trim: true, index: true },
     class: { type: String, trim: true, index: true },
     fileUrl: { type: String, required: true },
+    publicId: { type: String, required: true },
+    resourceType: { type: String, required: true, default: "image" },
     originalName: { type: String, required: true },
     mimeType: { type: String, required: true },
     size: { type: Number, required: true },
