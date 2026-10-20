@@ -125,19 +125,12 @@ export default function PapersPage() {
   const uploadMutation = useMutation({
     mutationFn: async () => {
       if (!activeTermId || !file) throw new Error("Choose a file to upload");
-      const uploaded = await paperService.uploadPaperFile(file);
-      return paperService.uploadPaper({
+      return paperService.uploadPaperFile({
         termId: activeTermId,
         title: title.trim(),
         subject: subject || undefined,
         class: className || undefined,
-        fileUrl: uploaded.secure_url,
-        publicId: uploaded.public_id,
-        resourceType: uploaded.resource_type,
-        pages: uploaded.pages ?? 1,
-        originalName: file.name,
-        mimeType: "application/pdf",
-        size: uploaded.bytes,
+        file,
       });
     },
     onSuccess: () => {

@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { v2 as cloudinary } from "cloudinary";
+import { v2 as cloudinary, type UploadApiResponse } from "cloudinary";
 import Term from "../models/Term";
 import Paper from "../models/Paper";
 import ExamMark from "../models/ExamMark";
@@ -25,6 +25,27 @@ const deliveryUrlFor = (publicId: string, resourceType: string, fallback: string
     type: "upload",
     secure: true,
     sign_url: true,
+  });
+};
+
+const uploadPdfToCloudinary = (file: Express.Multer.File): Promise<UploadApiResponse> => {
+  configureCloudinary();
+  const baseName = file.originalname.replace(/\.pdf$/i, "").replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-|-$/g, "") || "paper";
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        resource_type: "raw",
+        type: "upload",
+        access_mode: "public",
+        overwrite: false,
+        public_id: `papers/${baseName}.pdf`,
+      },
+      (error, result) => {
+        if (error || !result) reject(error || new Error("Cloudinary did not return an upload result"));
+        else resolve(result);
+      }
+    );
+    stream.end(file.buffer);
   });
 };
 
@@ -131,6 +152,37 @@ export const uploadPaper = asyncHandler(async (req: Request, res: Response) => {
   });
 
   res.status(201).json({ success: true, message: "Paper uploaded", data: paper });
+});
+
+export const uploadPaperWithFile = asyncHandler(async (req: Request, res: Response) => {
+  const file = req.file;
+  if (!file || file.mimetype !== "application/pdf") throw new ApiError(400, "Only PDF files are allowed");
+  if (file.size > 20 * 1024 * 1024) throw new ApiError(400, "PDF must be 20 MB or smaller");
+
+  const term = await Term.findById(req.body.termId);
+  if (!term) throw new ApiError(404, "Term not found");
+
+  const uploaded = await uploadPdfToCloudinary(file);
+  try {
+    const paper = await Paper.create({
+      termId: term._id,
+      title: String(req.body.title || "").trim(),
+      subject: req.body.subject || undefined,
+      class: req.body.class || undefined,
+      fileUrl: uploaded.secure_url,
+      publicId: uploaded.public_id,
+      resourceType: uploaded.resource_type,
+      pages: Number(uploaded.pages) || 1,
+      originalName: file.originalname,
+      mimeType: file.mimetype,
+      size: file.size,
+      uploadedBy: req.user?.name,
+    });
+    res.status(201).json({ success: true, message: "Paper uploaded", data: paper });
+  } catch (error) {
+    await destroyCloudinaryAsset(uploaded.public_id, uploaded.resource_type);
+    throw error;
+  }
 });
 
 export const deletePaper = asyncHandler(async (req: Request, res: Response) => {
