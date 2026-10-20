@@ -305,7 +305,8 @@ export default function QuizzesPage() {
       return;
     }
     const nextRemarks = obtained >= 0 ? "" : quiz?.remarks ?? "";
-    if (quiz && Number(quiz.obtainedMarks ?? 0) === obtained && (quiz.remarks ?? "") === nextRemarks) {
+    const hasStoredMarks = quiz?.obtainedMarks !== null && quiz?.obtainedMarks !== undefined;
+    if (quiz && hasStoredMarks && Number(quiz.obtainedMarks) === obtained && (quiz.remarks ?? "") === nextRemarks) {
       setEditing(null);
       return;
     }
