@@ -24,19 +24,23 @@ export interface CloudinaryUpload {
   pages?: number;
 }
 
-const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "aq49gwvn";
-const CLOUDINARY_UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "teachers_assistant";
+const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+const CLOUDINARY_UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 const MAX_PDF_SIZE = 20 * 1024 * 1024;
 
 export const uploadPaperFile = async (file: File): Promise<CloudinaryUpload> => {
   if (!/\.pdf$/i.test(file.name)) throw new Error("Only PDF files are allowed");
   if (file.size > MAX_PDF_SIZE) throw new Error("PDF must be 20 MB or smaller");
+  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
+    throw new Error("Cloudinary is not configured. Add the client Cloudinary environment variables and restart the app.");
+  }
 
   const form = new FormData();
   form.append("file", file);
   form.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+  form.append("public_id", `papers/${crypto.randomUUID()}.pdf`);
 
-  const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, {
+  const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/raw/upload`, {
     method: "POST",
     body: form,
   });

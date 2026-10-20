@@ -21,9 +21,6 @@ import { useSubjectsQuery, useClassesQuery } from "@/features/meta/useMetaQuerie
 const today = (): string => new Date().toLocaleDateString("en-CA");
 const toDateInput = (value: string | null): string => (value ? value.slice(0, 10) : "");
 
-const pageImageUrl = (fileUrl: string, page: number): string =>
-  fileUrl.replace("/upload/", `/upload/pg_${page}/`).replace(/\.pdf$/i, ".jpg");
-
 export default function PapersPage() {
   const queryClient = useQueryClient();
   const [selectedTermId, setSelectedTermId] = useState<string | null>(null);
@@ -447,27 +444,13 @@ export default function PapersPage() {
           ) : undefined
         }
       >
-        {paperToView &&
-          (paperToView.resourceType === "image" ? (
-            <div className="space-y-3">
-              {Array.from({ length: Math.max(1, paperToView.pages ?? 1) }, (_, index) => index + 1).map((page) => (
-                // eslint-disable-next-line @next/next/no-img-element -- page transforms have no known dimensions
-                <img
-                  key={page}
-                  src={pageImageUrl(paperToView.fileUrl, page)}
-                  alt={`${paperToView.title} — page ${page}`}
-                  loading={page === 1 ? "eager" : "lazy"}
-                  className="w-full rounded-lg border border-white/10 bg-white"
-                />
-              ))}
-            </div>
-          ) : (
-            <iframe
-              src={paperToView.fileUrl}
-              title={paperToView.title}
-              className="h-[70vh] w-full rounded-lg border border-white/10 bg-white"
-            />
-          ))}
+        {paperToView && (
+          <iframe
+            src={paperToView.fileUrl}
+            title={paperToView.title}
+            className="h-[70vh] w-full rounded-lg border border-white/10 bg-white"
+          />
+        )}
       </Modal>
 
       <ConfirmDialog

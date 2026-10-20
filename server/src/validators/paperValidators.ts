@@ -15,8 +15,13 @@ export const paperValidators = [
     .isURL({ protocols: ["https"], require_protocol: true })
     .withMessage("Invalid file URL")
     .custom((value: string) => {
-      const cloudName = process.env.CLOUDINARY_CLOUD_NAME || "aq49gwvn";
-      return value.startsWith(`https://res.cloudinary.com/${cloudName}/`) && /\.pdf(\?|$)/i.test(value);
+      const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+      return (
+        Boolean(cloudName) &&
+        value.startsWith(`https://res.cloudinary.com/${cloudName}/`) &&
+        /\/(image|raw)\/upload\//.test(value) &&
+        /\.pdf(\?|$)/i.test(value)
+      );
     })
     .withMessage("Paper must be a PDF stored in Cloudinary"),
   body("publicId").trim().notEmpty().withMessage("Missing Cloudinary public id"),
