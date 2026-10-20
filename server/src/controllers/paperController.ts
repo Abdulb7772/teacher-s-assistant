@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { v2 as cloudinary } from "cloudinary";
 import Term from "../models/Term";
 import Paper from "../models/Paper";
 import ExamMark from "../models/ExamMark";
@@ -6,6 +7,26 @@ import ApiError from "../utils/ApiError";
 import asyncHandler from "../utils/asyncHandler";
 
 const cloudName = (): string => process.env.CLOUDINARY_CLOUD_NAME || "aq49gwvn";
+
+const configureCloudinary = (): void => {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+    secure: true,
+  });
+};
+
+const deliveryUrlFor = (publicId: string, resourceType: string, fallback: string): string => {
+  if (!publicId || !process.env.CLOUDINARY_API_SECRET || !process.env.CLOUDINARY_CLOUD_NAME) return fallback;
+  configureCloudinary();
+  return cloudinary.url(publicId, {
+    resource_type: resourceType,
+    type: "upload",
+    secure: true,
+    sign_url: true,
+  });
+};
 
 // Uploads use the unsigned preset from the browser. Destroying assets requires
 // API credentials; without them the app record is removed but the asset stays.
@@ -83,7 +104,11 @@ export const getPapers = asyncHandler(async (req: Request, res: Response) => {
   if (req.query.search) filter.title = { $regex: req.query.search, $options: "i" };
 
   const papers = await Paper.find(filter).sort({ createdAt: -1 }).lean();
-  res.json({ success: true, data: papers });
+  const papersWithDeliveryUrls = papers.map((paper) => ({
+    ...paper,
+    fileUrl: deliveryUrlFor(paper.publicId, paper.resourceType, paper.fileUrl),
+  }));
+  res.json({ success: true, data: papersWithDeliveryUrls });
 });
 
 export const uploadPaper = asyncHandler(async (req: Request, res: Response) => {
