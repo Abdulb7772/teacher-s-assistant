@@ -17,14 +17,12 @@ const configureCloudinary = (): void => {
   });
 };
 
-const deliveryUrlFor = (publicId: string, resourceType: string, fallback: string): string => {
-  if (!publicId || !process.env.CLOUDINARY_API_SECRET || !process.env.CLOUDINARY_CLOUD_NAME) return fallback;
+const cloudinaryDownloadUrl = (publicId: string, resourceType: string): string => {
   configureCloudinary();
-  return cloudinary.url(publicId, {
+  return cloudinary.utils.private_download_url(publicId, "pdf", {
     resource_type: resourceType,
     type: "upload",
-    secure: true,
-    sign_url: true,
+    attachment: false,
   });
 };
 
@@ -127,9 +125,40 @@ export const getPapers = asyncHandler(async (req: Request, res: Response) => {
   const papers = await Paper.find(filter).sort({ createdAt: -1 }).lean();
   const papersWithDeliveryUrls = papers.map((paper) => ({
     ...paper,
-    fileUrl: deliveryUrlFor(paper.publicId, paper.resourceType, paper.fileUrl),
+    fileUrl: `/api/papers/${paper._id.toString()}/file`,
   }));
   res.json({ success: true, data: papersWithDeliveryUrls });
+});
+
+export const streamPaperFile = asyncHandler(async (req: Request, res: Response) => {
+  const paper = await Paper.findById(req.params.id).lean();
+  if (!paper) throw new ApiError(404, "Paper not found");
+  if (!process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+    throw new ApiError(503, "Cloudinary server credentials are not configured");
+  }
+
+  const response = await fetch(cloudinaryDownloadUrl(paper.publicId, "raw"));
+  if (!response.ok || !response.body) {
+    throw new ApiError(502, "The PDF could not be retrieved from Cloudinary");
+  }
+
+  res.status(200);
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `inline; filename="${paper.originalName.replace(/["\r\n]/g, "")}"`);
+  res.setHeader("Content-Length", paper.size.toString());
+  response.body.pipeTo(
+    new WritableStream({
+      write(chunk) {
+        res.write(chunk);
+      },
+      close() {
+        res.end();
+      },
+      abort(error) {
+        res.destroy(error);
+      },
+    })
+  );
 });
 
 export const uploadPaper = asyncHandler(async (req: Request, res: Response) => {
