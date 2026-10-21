@@ -16,7 +16,8 @@ import { SkeletonRows } from "@/components/ui/Skeleton";
 import { formatDate } from "@/lib/formatters";
 import type { Paper, Term } from "@/types";
 import * as paperService from "@/services/paperService";
-import { useSubjectsQuery, useClassesQuery } from "@/features/meta/useMetaQueries";
+import * as examService from "@/services/examService";
+import { useClassesQuery } from "@/features/meta/useMetaQueries";
 
 const today = (): string => new Date().toLocaleDateString("en-CA");
 const toDateInput = (value: string | null): string => (value ? value.slice(0, 10) : "");
@@ -40,15 +41,24 @@ export default function PapersPage() {
   const [file, setFile] = useState<File | null>(null);
   const [fileInputKey, setFileInputKey] = useState(0);
 
-  const subjectsQuery = useSubjectsQuery();
   const classesQuery = useClassesQuery();
-  const subjects = subjectsQuery.data?.data ?? [];
   const classes = classesQuery.data?.data ?? [];
 
   const termsQuery = useQuery({ queryKey: ["terms"], queryFn: paperService.getTerms });
   const terms = useMemo(() => termsQuery.data?.data ?? [], [termsQuery.data]);
   const activeTermId = selectedTermId ?? terms[0]?._id ?? null;
   const activeTerm = useMemo(() => terms.find((term) => term._id === activeTermId), [terms, activeTermId]);
+
+  const examMarksQuery = useQuery({
+    queryKey: ["exam-marks", activeTermId],
+    queryFn: () => examService.getExamMarks({ termId: activeTermId as string }),
+    enabled: Boolean(activeTermId),
+    staleTime: 60 * 1000,
+  });
+  const subjects = useMemo(
+    () => Array.from(new Set((examMarksQuery.data?.data ?? []).map((mark) => mark.subject))).sort(),
+    [examMarksQuery.data]
+  );
 
   const papersQuery = useQuery({
     queryKey: ["papers", activeTermId],
@@ -383,7 +393,7 @@ export default function PapersPage() {
               label="Subject (optional)"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              options={[{ value: "", label: "All subjects" }, ...subjects.map((s) => ({ value: s.name, label: s.name }))]}
+              options={[{ value: "", label: "All subjects" }, ...subjects.map((subjectName) => ({ value: subjectName, label: subjectName }))]}
             />
             <Select
               label="Class (optional)"
