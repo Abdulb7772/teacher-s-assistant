@@ -64,6 +64,9 @@ export const downloadReportCard = async (
   doc.text("1st Term Exams", pageWidth / 2, 47, { align: "center" });
   doc.setFontSize(11);
   doc.text("MARK SHEET", pageWidth / 2, 54, { align: "center" });
+  const year = new Date().getFullYear();
+  doc.setFontSize(9);
+  doc.text(`Session: ${year}-${String(year + 1).slice(-2)}`, pageWidth / 2, 60, { align: "center" });
   doc.setFont("helvetica", "normal");
 
   doc.setFontSize(9);
