@@ -30,7 +30,8 @@ export const downloadReportCard = async (
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 12;
+  const contentWidth = 174;
+  const margin = (pageWidth - contentWidth) / 2;
   const totalMarks = marks.reduce((sum, mark) => sum + Number(mark.totalMarks), 0);
   const obtainedMarks = marks.reduce(
     (sum, mark) => sum + (mark.obtainedMarks === null ? 0 : Number(mark.obtainedMarks)),
@@ -43,12 +44,12 @@ export const downloadReportCard = async (
   doc.rect(0, 0, pageWidth, pageHeight, "F");
   doc.setDrawColor(20, 52, 93);
   doc.setLineWidth(0.5);
-  doc.rect(5, 5, pageWidth - 10, pageHeight - 10);
+  doc.rect(10, 8, pageWidth - 20, pageHeight - 16);
   doc.setLineWidth(0.2);
   doc.setDrawColor(191, 145, 35);
-  doc.rect(7, 7, pageWidth - 14, pageHeight - 14);
+  doc.rect(12, 10, pageWidth - 24, pageHeight - 20);
 
-  doc.addImage(logo, "PNG", margin, 12, pageWidth - margin * 2, 25);
+  doc.addImage(logo, "PNG", pageWidth / 2 - 73, 12, 146, 29.25);
   doc.setTextColor(20, 52, 93);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
@@ -80,7 +81,7 @@ export const downloadReportCard = async (
   autoTable(doc, {
     startY: 72,
     margin: { left: margin, right: margin },
-    tableWidth: pageWidth - margin * 2,
+    tableWidth: contentWidth,
     head: [["SUBJECT", "TOTAL MARKS", "OBTAINED MARKS", "GRADE", "PERCENTAGE", "GRADE POINT (GPA)", "DESCRIPTION / STATUS"]],
     body: [
       ...rows,
@@ -127,12 +128,14 @@ export const downloadReportCard = async (
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(20, 52, 93);
-  doc.text("Remarks :", margin, tableEndY + 14);
+  doc.text("Position :", margin, tableEndY + 14);
+  doc.line(margin + 18, tableEndY + 14, pageWidth - margin, tableEndY + 14);
+  doc.text("Remarks :", margin, tableEndY + 25);
   doc.setDrawColor(20, 52, 93);
-  doc.rect(margin, tableEndY + 18, pageWidth - margin * 2, 25);
+  doc.rect(margin, tableEndY + 29, contentWidth, 22);
   doc.setFont("helvetica", "normal");
-  doc.text("Teacher's Signature: ____________________", margin, tableEndY + 58);
-  doc.text("Principal's Signature: ____________________", pageWidth - margin, tableEndY + 58, { align: "right" });
+  doc.text("Teacher's Signature: ____________________", margin, tableEndY + 63);
+  doc.text("Principal's Signature: ____________________", pageWidth - margin, tableEndY + 63, { align: "right" });
 
   doc.save(`${cleanFileName(student.name)}-${cleanFileName(termName)}-report-card.pdf`);
 };
