@@ -121,6 +121,9 @@ export const downloadReportCard = async (
       fontStyle: "bold",
       fontSize: 6.5,
     },
+    didParseCell: (data) => {
+      if (data.section === "body" && data.column.index === 0) data.cell.styles.fontStyle = "bold";
+    },
     columnStyles: {
       0: { halign: "left", cellWidth: 32 },
       1: { cellWidth: 21 },
