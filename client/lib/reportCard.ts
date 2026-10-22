@@ -19,7 +19,8 @@ export const downloadReportCard = async (
   student: Student,
   className: string,
   termName: string,
-  marks: ExamMark[]
+  marks: ExamMark[],
+  position: string
 ): Promise<void> => {
   const [{ jsPDF }, { default: autoTable }] = await Promise.all([
     import("jspdf"),
@@ -128,7 +129,7 @@ export const downloadReportCard = async (
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(20, 52, 93);
-  doc.text("Position :", margin, tableEndY + 14);
+  doc.text(`Position : ${position}`, margin, tableEndY + 14);
   doc.line(margin + 18, tableEndY + 14, pageWidth - margin, tableEndY + 14);
   doc.text("Remarks :", margin, tableEndY + 25);
   doc.setDrawColor(20, 52, 93);

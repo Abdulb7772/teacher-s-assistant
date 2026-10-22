@@ -171,7 +171,13 @@ export default function ExamMarksPage() {
         const studentMarks = subjectColumns
           .map((column) => markFor(student._id, column.subject))
           .filter((mark): mark is ExamMark => Boolean(mark));
-        await downloadReportCard(student, selectedClass, activeTerm.name, studentMarks);
+        const stats = statsFor(student._id);
+        const position = stats
+          ? stats.percentage < PASS_PERCENT
+            ? "Failed"
+            : String(positionMap.get(student._id) ?? "—")
+          : "—";
+        await downloadReportCard(student, selectedClass, activeTerm.name, studentMarks, position);
         toast.success(`Report card generated for ${student.name}`);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Report card could not be generated");
@@ -179,7 +185,7 @@ export default function ExamMarksPage() {
         setReportCardStudentId(null);
       }
     },
-    [activeTerm, selectedClass, subjectColumns, markFor]
+    [activeTerm, selectedClass, subjectColumns, markFor, statsFor, positionMap]
   );
 
   const invalidateMarks = useCallback(() => {
