@@ -803,7 +803,7 @@ export default function ExamMarksPage() {
                           disabled={Boolean(reportCardStudentId && reportCardStudentId !== student._id)}
                           title={`Generate report card for ${student.name}`}
                         >
-                          Report
+                          PDF
                         </Button>
                       </td>
                     </tr>
