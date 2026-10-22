@@ -18,6 +18,7 @@ import Select from "@/components/ui/Select";
 import { SkeletonRows } from "@/components/ui/Skeleton";
 import { gradeFor, percentageOf, PASS_PERCENT } from "@/lib/grades";
 import { exportPDF, type ExportColumn } from "@/lib/exportUtils";
+import { downloadReportCard } from "@/lib/reportCard";
 import type { ExamMark, StudentPerformance } from "@/types";
 import * as examService from "@/services/examService";
 import * as paperService from "@/services/paperService";
@@ -55,6 +56,7 @@ export default function ExamMarksPage() {
   const [subjectInput, setSubjectInput] = useState("");
   const [totalInput, setTotalInput] = useState("100");
   const [exporting, setExporting] = useState(false);
+  const [reportCardStudentId, setReportCardStudentId] = useState<string | null>(null);
 
   const termsQuery = useQuery({ queryKey: ["terms"], queryFn: paperService.getTerms });
   const subjectsQuery = useSubjectsQuery();
@@ -160,6 +162,25 @@ export default function ExamMarksPage() {
     });
     return positions;
   }, [students, statsFor]);
+
+  const generateReportCard = useCallback(
+    async (student: StudentPerformance): Promise<void> => {
+      if (!activeTerm || !selectedClass) return;
+      setReportCardStudentId(student._id);
+      try {
+        const studentMarks = subjectColumns
+          .map((column) => markFor(student._id, column.subject))
+          .filter((mark): mark is ExamMark => Boolean(mark));
+        await downloadReportCard(student, selectedClass, activeTerm.name, studentMarks);
+        toast.success(`Report card generated for ${student.name}`);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Report card could not be generated");
+      } finally {
+        setReportCardStudentId(null);
+      }
+    },
+    [activeTerm, selectedClass, subjectColumns, markFor]
+  );
 
   const invalidateMarks = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["exam-marks", activeTermId, selectedClass] });
@@ -741,6 +762,7 @@ export default function ExamMarksPage() {
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">GPA</th>
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">Position</th>
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">Grade</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white/50">Report Card</th>
                 </tr>
               </thead>
               <tbody>
@@ -771,12 +793,25 @@ export default function ExamMarksPage() {
                       <td className="px-4 py-2.5 text-center">
                         {stats ? <GradeBadge grade={stats.grade} /> : <span className="text-white/25">—</span>}
                       </td>
+                      <td className="px-4 py-2.5 text-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon={FileDown}
+                          onClick={() => void generateReportCard(student)}
+                          loading={reportCardStudentId === student._id}
+                          disabled={Boolean(reportCardStudentId && reportCardStudentId !== student._id)}
+                          title={`Generate report card for ${student.name}`}
+                        >
+                          Report
+                        </Button>
+                      </td>
                     </tr>
                   );
                 })}
                 {students.length === 0 && (
                   <tr>
-                    <td colSpan={subjectColumns.length + 8} className="px-4 py-10 text-center text-sm text-white/40">
+                    <td colSpan={subjectColumns.length + 9} className="px-4 py-10 text-center text-sm text-white/40">
                       <Users size={20} className="mx-auto mb-2 opacity-40" />
                       No students in {selectedClass} class yet
                     </td>
