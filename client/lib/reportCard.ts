@@ -165,16 +165,47 @@ export const downloadReportCard = async (
   doc.text("Teacher's Signature: ____________________", margin, tableEndY + 57);
   doc.text("Principal's Signature: ____________________", pageWidth - margin, tableEndY + 57, { align: "right" });
 
-  doc.setTextColor(215, 220, 228);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  doc.text("GRADING SCHEME", pageWidth / 2, 205, { align: "center" });
-  doc.setFontSize(7);
-  doc.text("GRADE       PERCENTAGE       GPA", pageWidth / 2, 214, { align: "center" });
-  GRADE_SCHEME.forEach(([grade, percentage, gpa], index) => {
-    doc.text(`${grade}             ${percentage}             ${gpa}`, pageWidth / 2, 221 + index * 6, {
-      align: "center",
-    });
+  const gradingStartY = 201;
+  const gradingGap = 4;
+  const gradingTableWidth = (contentWidth - gradingGap) / 2;
+  const gradingColumnStyles = {
+    0: { cellWidth: 20, fontStyle: "bold" as const },
+    1: { cellWidth: 37 },
+    2: { cellWidth: gradingTableWidth - 57 },
+  };
+  const gradingTableOptions = {
+    startY: gradingStartY,
+    margin: { left: margin, right: margin },
+    tableWidth: gradingTableWidth,
+    head: [["GRADE", "PERCENTAGE", "GPA"]],
+    theme: "grid" as const,
+    styles: {
+      font: "helvetica",
+      fontSize: 7,
+      cellPadding: 1.8,
+      minCellHeight: 11,
+      halign: "center" as const,
+      valign: "middle" as const,
+      textColor: [80, 80, 80] as [number, number, number],
+      lineColor: [150, 150, 150] as [number, number, number],
+      lineWidth: 0.15,
+    },
+    headStyles: {
+      fillColor: [90, 90, 90] as [number, number, number],
+      textColor: [255, 255, 255] as [number, number, number],
+      fontSize: 7,
+    },
+    columnStyles: gradingColumnStyles,
+  };
+
+  autoTable(doc, {
+    ...gradingTableOptions,
+    body: GRADE_SCHEME.slice(0, 6),
+  });
+  autoTable(doc, {
+    ...gradingTableOptions,
+    margin: { left: margin + gradingTableWidth + gradingGap, right: margin },
+    body: GRADE_SCHEME.slice(6),
   });
 
   doc.save(`${cleanFileName(student.name)}-${cleanFileName(termName)}-report-card.pdf`);
