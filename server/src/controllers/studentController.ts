@@ -5,6 +5,7 @@ import ApiError from "../utils/ApiError";
 import asyncHandler from "../utils/asyncHandler";
 import { paginate } from "../services/courseService";
 import { studentPerformanceAggregation, decorateWithGrade, StudentPerformanceBase } from "../services/quizService";
+import { v2 as cloudinary, type UploadApiResponse } from "cloudinary";
 
 const buildFilters = (query: Record<string, string>): Record<string, unknown> => {
   const { search, class: className, subject } = query;
@@ -66,6 +67,48 @@ export const updateStudent = asyncHandler(async (req: Request, res: Response) =>
   const student = await Student.findByIdAndUpdate(req.params.id, stripEmptyIdentity(req.body), { new: true, runValidators: true });
   if (!student) throw new ApiError(404, "Student not found");
   res.json({ success: true, message: "Student updated", data: student });
+});
+
+const uploadStudentPhoto = (file: Express.Multer.File, studentId: string): Promise<UploadApiResponse> => {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+    secure: true,
+  });
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: "students",
+        public_id: studentId,
+        resource_type: "image",
+        type: "upload",
+        access_mode: "public",
+        overwrite: true,
+        invalidate: true,
+      },
+      (error, result) => {
+        if (error || !result) reject(error || new Error("Cloudinary did not return an upload result"));
+        else resolve(result);
+      }
+    );
+    stream.end(file.buffer);
+  });
+};
+
+export const uploadStudentPhotoHandler = asyncHandler(async (req: Request, res: Response) => {
+  if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+    throw new ApiError(503, "Cloudinary is not configured");
+  }
+  if (!req.file) throw new ApiError(400, "Choose an image to upload");
+
+  const student = await Student.findById(req.params.id);
+  if (!student) throw new ApiError(404, "Student not found");
+  const uploaded = await uploadStudentPhoto(req.file, student._id.toString());
+  student.photoUrl = uploaded.secure_url;
+  student.photoPublicId = uploaded.public_id;
+  await student.save();
+  res.json({ success: true, message: "Student photo updated", data: student });
 });
 
 export const deleteStudent = asyncHandler(async (req: Request, res: Response) => {

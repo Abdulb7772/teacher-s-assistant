@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import toast from "react-hot-toast";
-import { Pencil, Plus, Trash2, Users } from "lucide-react";
+import { ImagePlus, Pencil, Plus, Trash2, Users } from "lucide-react";
 import Avatar from "@/components/ui/Avatar";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -65,6 +65,8 @@ export default function ManageStudentsPage() {
   const [editing, setEditing] = useState<StudentPerformance | null>(null);
   const [deleting, setDeleting] = useState<StudentPerformance | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [photoStudent, setPhotoStudent] = useState<StudentPerformance | null>(null);
 
   const form = useForm<StudentFormValues>({
     resolver: zodResolver(studentFormSchema),
@@ -124,6 +126,36 @@ export default function ManageStudentsPage() {
     onError: (err) => toast.error(err.message),
   });
 
+  const photoMutation = useMutation({
+    mutationFn: ({ id, file }: { id: string; file: File }) => studentService.uploadStudentPhoto(id, file),
+    onSuccess: () => {
+      toast.success("Student photo updated");
+      setPhotoStudent(null);
+      refresh();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const choosePhoto = (student: StudentPerformance) => {
+    setPhotoStudent(student);
+    photoInputRef.current?.click();
+  };
+
+  const onPhotoSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !photoStudent) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Choose an image file");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Photo must be 5 MB or smaller");
+      return;
+    }
+    photoMutation.mutate({ id: photoStudent._id, file });
+  };
+
   const onSubmit = form.handleSubmit(async (values) => {
     const payload: StudentPayload = {
       name: values.name.trim(),
@@ -149,7 +181,11 @@ export default function ManageStudentsPage() {
         const s = info.row.original;
         return (
           <div className="flex items-center gap-3">
-            <Avatar name={s.name} size="sm" />
+            {s.photoUrl ? (
+              <img src={s.photoUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
+            ) : (
+              <Avatar name={s.name} size="sm" />
+            )}
             <div>
               <p className="font-medium text-white">{s.name}</p>
             </div>
@@ -182,6 +218,14 @@ export default function ManageStudentsPage() {
         const row = info.row.original;
         return (
           <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={ImagePlus}
+              onClick={() => choosePhoto(row)}
+              title="Add or change photo"
+              loading={photoMutation.isPending && photoStudent?._id === row._id}
+            />
             <Button variant="ghost" size="sm" icon={Pencil} onClick={() => openEdit(row)} title="Edit student" />
             <Button
               variant="ghost"
@@ -244,6 +288,7 @@ export default function ManageStudentsPage() {
           <Pagination pagination={pagination} onPageChange={(page) => setFilter("page", page)} />
         </div>
       </Card>
+      <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={onPhotoSelected} />
 
       <Modal
         open={modalOpen}

@@ -7,6 +7,8 @@ export interface IStudent extends Document {
   email?: string;
   class?: string;
   subject?: string;
+  photoUrl?: string;
+  photoPublicId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -26,6 +28,8 @@ const studentSchema = new Schema<IStudent>(
     email: { type: String, trim: true, lowercase: true, match: [/^\S+@\S+\.\S+$/, "Please provide a valid email"] },
     class: { type: String, trim: true, index: true },
     subject: { type: String, trim: true, index: true },
+    photoUrl: { type: String, trim: true },
+    photoPublicId: { type: String, trim: true },
   },
   { timestamps: true }
 );

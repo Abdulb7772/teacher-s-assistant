@@ -46,6 +46,8 @@ export interface Student {
   email?: string;
   class?: string;
   subject?: string;
+  photoUrl?: string;
+  photoPublicId?: string;
   createdAt: string;
 }
 

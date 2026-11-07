@@ -27,3 +27,9 @@ export const updateStudent = (id: string, payload: StudentPayload): Promise<ApiR
 
 export const deleteStudent = (id: string): Promise<ApiResponse<null>> =>
   api.delete(`/students/${id}`).then((r) => r.data);
+
+export const uploadStudentPhoto = (id: string, file: File): Promise<ApiResponse<Student>> => {
+  const form = new FormData();
+  form.append("photo", file);
+  return api.post(`/students/${id}/photo`, form).then((r) => r.data);
+};

@@ -22,6 +22,13 @@ const imageDataUrl = async (url: string): Promise<string> => {
   });
 };
 
+const GRADE_SCHEME = [
+  ["A++", "95-100", "5.0"], ["A+", "90-94", "4.7"], ["A", "85-89", "4.3"],
+  ["B++", "80-84", "4.0"], ["B+", "75-79", "3.7"], ["B", "70-74", "3.3"],
+  ["C+", "65-69", "3.0"], ["C", "60-64", "3.0"], ["D", "50-59", "2.0"],
+  ["E", "40-49", "1.0"], ["U", "0-39", "0.0"],
+];
+
 export const downloadReportCard = async (
   student: Student,
   className: string,
@@ -34,6 +41,7 @@ export const downloadReportCard = async (
     import("jspdf-autotable"),
   ]);
   const logo = await imageDataUrl("/report-card-logo.png");
+  const studentPhoto = student.photoUrl ? await imageDataUrl(student.photoUrl) : null;
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -69,9 +77,10 @@ export const downloadReportCard = async (
   doc.text(`Session: ${year}-${String(year + 1).slice(-2)}`, pageWidth / 2, 60, { align: "center" });
   doc.setFont("helvetica", "normal");
 
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.text(`NAME: ${student.name}`, margin + 2, 65);
   doc.text(`CLASS: ${className}`, pageWidth - margin - 2, 65, { align: "right" });
+  if (studentPhoto) doc.addImage(studentPhoto, "JPEG", pageWidth / 2 - 10, 62, 20, 20);
 
   const rows = marks.map((mark) => {
     const hasMark = mark.obtainedMarks !== null && mark.obtainedMarks !== undefined;
@@ -110,7 +119,7 @@ export const downloadReportCard = async (
     styles: {
       font: "helvetica",
       fontSize: 7,
-      cellPadding: 2,
+      cellPadding: 1.25,
       textColor: [20, 30, 45],
       fillColor: [255, 255, 255],
       lineColor: [20, 52, 93],
@@ -122,7 +131,7 @@ export const downloadReportCard = async (
       fillColor: [20, 52, 93],
       textColor: [255, 255, 255],
       fontStyle: "bold",
-      fontSize: 6.5,
+      fontSize: 6,
     },
     didParseCell: (data) => {
       if (data.section === "body" && data.column.index === 0) data.cell.styles.fontStyle = "bold";
@@ -150,10 +159,25 @@ export const downloadReportCard = async (
   doc.setFont("helvetica", "bold");
   doc.text("Remarks :", margin, tableEndY + 29);
   doc.setDrawColor(20, 52, 93);
-  doc.rect(margin, tableEndY + 33, contentWidth, 22);
+  doc.rect(margin, tableEndY + 33, contentWidth, 15);
+  doc.setFontSize(7);
+  doc.text("Grading Scheme", margin, tableEndY + 53);
+  autoTable(doc, {
+    startY: tableEndY + 55,
+    margin: { left: margin, right: margin },
+    tableWidth: contentWidth,
+    head: [["GRADE", ...GRADE_SCHEME.map((entry) => entry[0])]],
+    body: [["PERCENTAGE", ...GRADE_SCHEME.map((entry) => entry[1])], ["GPA", ...GRADE_SCHEME.map((entry) => entry[2])]],
+    theme: "grid",
+    styles: { font: "helvetica", fontSize: 5.2, cellPadding: 0.8, halign: "center", valign: "middle", lineWidth: 0.1 },
+    headStyles: { fillColor: [20, 52, 93], textColor: [255, 255, 255], fontSize: 5.2 },
+    columnStyles: { 0: { cellWidth: 24, fontStyle: "bold" } },
+  });
+  const gradingEndY = (doc as typeof doc & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? tableEndY + 70;
   doc.setFont("helvetica", "normal");
-  doc.text("Teacher's Signature: ____________________", margin, tableEndY + 67);
-  doc.text("Principal's Signature: ____________________", pageWidth - margin, tableEndY + 67, { align: "right" });
+  doc.setFontSize(7);
+  doc.text("Teacher's Signature: ____________________", margin, gradingEndY + 9);
+  doc.text("Principal's Signature: ____________________", pageWidth - margin, gradingEndY + 9, { align: "right" });
 
   doc.save(`${cleanFileName(student.name)}-${cleanFileName(termName)}-report-card.pdf`);
 };
