@@ -80,7 +80,7 @@ export const downloadReportCard = async (
   doc.setFontSize(8);
   doc.text(`NAME: ${student.name}`, margin + 2, 65);
   doc.text(`CLASS: ${className}`, pageWidth - margin - 2, 65, { align: "right" });
-  if (studentPhoto) doc.addImage(studentPhoto, "JPEG", pageWidth / 2 - 10, 62, 20, 20);
+  if (studentPhoto) doc.addImage(studentPhoto, "JPEG", pageWidth - margin - 20, 44, 20, 18);
 
   const rows = marks.map((mark) => {
     const hasMark = mark.obtainedMarks !== null && mark.obtainedMarks !== undefined;
