@@ -160,24 +160,22 @@ export const downloadReportCard = async (
   doc.text("Remarks :", margin, tableEndY + 29);
   doc.setDrawColor(20, 52, 93);
   doc.rect(margin, tableEndY + 33, contentWidth, 15);
-  doc.setFontSize(7);
-  doc.text("Grading Scheme", margin, tableEndY + 53);
-  autoTable(doc, {
-    startY: tableEndY + 55,
-    margin: { left: margin, right: margin },
-    tableWidth: contentWidth,
-    head: [["GRADE", ...GRADE_SCHEME.map((entry) => entry[0])]],
-    body: [["PERCENTAGE", ...GRADE_SCHEME.map((entry) => entry[1])], ["GPA", ...GRADE_SCHEME.map((entry) => entry[2])]],
-    theme: "grid",
-    styles: { font: "helvetica", fontSize: 5.2, cellPadding: 0.8, halign: "center", valign: "middle", lineWidth: 0.1 },
-    headStyles: { fillColor: [20, 52, 93], textColor: [255, 255, 255], fontSize: 5.2 },
-    columnStyles: { 0: { cellWidth: 24, fontStyle: "bold" } },
-  });
-  const gradingEndY = (doc as typeof doc & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? tableEndY + 70;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
-  doc.text("Teacher's Signature: ____________________", margin, gradingEndY + 9);
-  doc.text("Principal's Signature: ____________________", pageWidth - margin, gradingEndY + 9, { align: "right" });
+  doc.text("Teacher's Signature: ____________________", margin, tableEndY + 57);
+  doc.text("Principal's Signature: ____________________", pageWidth - margin, tableEndY + 57, { align: "right" });
+
+  doc.setTextColor(215, 220, 228);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(11);
+  doc.text("GRADING SCHEME", pageWidth / 2, 205, { align: "center" });
+  doc.setFontSize(7);
+  doc.text("GRADE       PERCENTAGE       GPA", pageWidth / 2, 214, { align: "center" });
+  GRADE_SCHEME.forEach(([grade, percentage, gpa], index) => {
+    doc.text(`${grade}             ${percentage}             ${gpa}`, pageWidth / 2, 221 + index * 6, {
+      align: "center",
+    });
+  });
 
   doc.save(`${cleanFileName(student.name)}-${cleanFileName(termName)}-report-card.pdf`);
 };
