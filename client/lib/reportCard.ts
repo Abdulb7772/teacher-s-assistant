@@ -40,7 +40,10 @@ export const downloadReportCard = async (
     import("jspdf"),
     import("jspdf-autotable"),
   ]);
-  const logo = await imageDataUrl("/report-card-logo.png");
+  const [logo, watermark] = await Promise.all([
+    imageDataUrl("/report-card-logo.png"),
+    imageDataUrl("/report-card-watermark.jpeg"),
+  ]);
   const studentPhoto = student.photoUrl ? await imageDataUrl(student.photoUrl) : null;
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: [216, 280] });
@@ -48,8 +51,8 @@ export const downloadReportCard = async (
   const pageHeight = doc.internal.pageSize.getHeight();
   const contentWidth = 174;
   const margin = (pageWidth - contentWidth) / 2;
-  const topReserved = 70;
-  const bottomReserved = 10;
+  const topReserved = 60;
+  const bottomReserved = 20;
   const totalMarks = marks.reduce((sum, mark) => sum + Number(mark.totalMarks), 0);
   const obtainedMarks = marks.reduce(
     (sum, mark) => sum + (mark.obtainedMarks === null ? 0 : Number(mark.obtainedMarks)),
@@ -57,30 +60,16 @@ export const downloadReportCard = async (
   );
   const overallPercentage = percentageOf(obtainedMarks, totalMarks);
   const overallGrade = gradeFor(overallPercentage);
-  const estimatedTableHeight = 7 + (marks.length + 1) * 7;
-  const contentHeight = 47 + estimatedTableHeight + 44;
-  const topOffset = topReserved + Math.max(0, (pageHeight - topReserved - bottomReserved - contentHeight) / 2);
+  const topOffset = topReserved;
 
   doc.setFillColor(255, 255, 255);
   doc.rect(0, 0, pageWidth, pageHeight, "F");
   doc.saveGraphicsState();
   doc.setGState(doc.GState({ opacity: 0.08 }));
-  doc.addImage(logo, "PNG", pageWidth / 2 - 48, topReserved + 20, 96, 19.2);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.setTextColor(120, 120, 120);
-  doc.text("GRADING SCHEME", pageWidth / 2, topReserved + 58, { align: "center" });
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  GRADE_SCHEME.forEach(([grade, percentage, gpa], index) => {
-    const column = index < 6 ? 0 : 1;
-    const row = index < 6 ? index : index - 6;
-    const x = margin + 35 + column * 70;
-    const y = topReserved + 65 + row * 8;
-    doc.text(`${grade}   ${percentage}   GPA ${gpa}`, x, y);
-  });
+  doc.addImage(watermark, "JPEG", pageWidth / 2 - 42, topReserved + 28, 84, 84);
   doc.restoreGraphicsState();
 
+  doc.addImage(logo, "PNG", pageWidth / 2 - 48, topOffset, 96, 19.2);
   doc.setTextColor(20, 52, 93);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
@@ -159,23 +148,59 @@ export const downloadReportCard = async (
     },
   });
 
-  const tableEndY = (doc as typeof doc & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 150;
+  const tableEndY = (doc as typeof doc & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? topOffset + 47;
+  const gradingStartY = tableEndY + 9;
+  doc.saveGraphicsState();
+  doc.setGState(doc.GState({ opacity: 0.32 }));
+  autoTable(doc, {
+    startY: gradingStartY,
+    margin: { left: margin, right: margin },
+    tableWidth: contentWidth,
+    head: [["MARKS / GRADE TABLE", "", ""]],
+    body: GRADE_SCHEME.map(([grade, percentage, gpa]) => [grade, percentage, `GPA ${gpa}`]),
+    theme: "grid",
+    styles: {
+      font: "helvetica",
+      fontSize: 5.5,
+      cellPadding: 0.7,
+      textColor: [100, 100, 100],
+      fillColor: [255, 255, 255],
+      lineColor: [150, 150, 150],
+      lineWidth: 0.1,
+      halign: "center",
+    },
+    headStyles: {
+      fillColor: [255, 255, 255],
+      textColor: [100, 100, 100],
+      fontStyle: "bold",
+      fontSize: 5.5,
+    },
+    columnStyles: {
+      0: { cellWidth: 58 },
+      1: { cellWidth: 58 },
+      2: { cellWidth: 58 },
+    },
+  });
+  doc.restoreGraphicsState();
+
+  const gradingEndY = (doc as typeof doc & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? gradingStartY + 55;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(20, 52, 93);
   doc.setDrawColor(20, 52, 93);
-  doc.text("Position :", margin, tableEndY + 8);
-  doc.line(margin + 25, tableEndY + 9, margin + 55, tableEndY + 9);
+  const signatureY = Math.min(gradingEndY + 44, pageHeight - bottomReserved);
+  doc.text("Position :", margin, gradingEndY + 8);
+  doc.line(margin + 25, gradingEndY + 9, margin + 55, gradingEndY + 9);
   doc.setFont("helvetica", "normal");
-  doc.text(ordinal(position), margin + 40, tableEndY + 8, { align: "center" });
+  doc.text(ordinal(position), margin + 40, gradingEndY + 8, { align: "center" });
   doc.setFont("helvetica", "bold");
-  doc.text("Remarks :", margin, tableEndY + 20);
+  doc.text("Remarks :", margin, gradingEndY + 20);
   doc.setDrawColor(20, 52, 93);
-  doc.rect(margin, tableEndY + 23, contentWidth, 12);
+  doc.rect(margin, gradingEndY + 23, contentWidth, 12);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
-  doc.text("Teacher's Signature: ____________________", margin, tableEndY + 44);
-  doc.text("Principal's Signature: ____________________", pageWidth - margin, tableEndY + 44, { align: "right" });
+  doc.text("Teacher's Signature: ____________________", margin, signatureY);
+  doc.text("Principal's Signature: ____________________", pageWidth - margin, signatureY, { align: "right" });
 
   doc.save(`${cleanFileName(student.name)}-${cleanFileName(termName)}-report-card.pdf`);
 };
