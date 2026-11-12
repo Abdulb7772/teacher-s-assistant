@@ -168,7 +168,7 @@ export const downloadReportCard = async (
     startY: gradingStartY,
     margin: { left: margin, right: margin },
     tableWidth: contentWidth,
-    head: [["MARKS / GRADE TABLE", "", ""]],
+    head: [["GRADE", "PERCENTAGE", "GPA"]],
     body: GRADE_SCHEME.map(([grade, percentage, gpa]) => [grade, percentage, `GPA ${gpa}`]),
     theme: "plain",
     styles: {
