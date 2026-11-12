@@ -12,12 +12,12 @@ const ordinal = (value: string): string => {
 
 const imageDataUrl = async (url: string): Promise<string> => {
   const response = await fetch(url);
-  if (!response.ok) throw new Error("Report card logo could not be loaded");
+  if (!response.ok) throw new Error("Report card image could not be loaded");
   const blob = await response.blob();
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error("Report card logo could not be read"));
+    reader.onerror = () => reject(new Error("Report card image could not be read"));
     reader.readAsDataURL(blob);
   });
 };
@@ -40,7 +40,6 @@ export const downloadReportCard = async (
     import("jspdf"),
     import("jspdf-autotable"),
   ]);
-  const logo = await imageDataUrl("/report-card-logo.png");
   const studentPhoto = student.photoUrl ? await imageDataUrl(student.photoUrl) : null;
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -65,22 +64,18 @@ export const downloadReportCard = async (
   doc.setDrawColor(191, 145, 35);
   doc.rect(12, 10, pageWidth - 24, pageHeight - 20);
 
-  doc.addImage(logo, "PNG", pageWidth / 2 - 73, 12, 146, 29.25);
   doc.setTextColor(20, 52, 93);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
-  doc.text("1st Term Exams", pageWidth / 2, 47, { align: "center" });
+  doc.text("1st Term Exams", pageWidth / 2, 24, { align: "center" });
   doc.setFontSize(11);
-  doc.text("MARK SHEET", pageWidth / 2, 54, { align: "center" });
-  const year = new Date().getFullYear();
-  doc.setFontSize(9);
-  doc.text(`Session: ${year}-${String(year + 1).slice(-2)}`, pageWidth / 2, 60, { align: "center" });
+  doc.text("MARK SHEET", pageWidth / 2, 31, { align: "center" });
   doc.setFont("helvetica", "normal");
 
   doc.setFontSize(8);
-  doc.text(`NAME: ${student.name}`, margin + 2, 65);
-  doc.text(`CLASS: ${className}`, pageWidth - margin - 2, 65, { align: "right" });
-  if (studentPhoto) doc.addImage(studentPhoto, "JPEG", pageWidth - margin - 20, 44, 20, 18);
+  doc.text(`NAME: ${student.name}`, margin + 2, 41);
+  doc.text(`CLASS: ${className}`, pageWidth - margin - 2, 41, { align: "right" });
+  if (studentPhoto) doc.addImage(studentPhoto, "JPEG", pageWidth - margin - 20, 25, 20, 18);
 
   const rows = marks.map((mark) => {
     const hasMark = mark.obtainedMarks !== null && mark.obtainedMarks !== undefined;
@@ -99,7 +94,7 @@ export const downloadReportCard = async (
   });
 
   autoTable(doc, {
-    startY: 72,
+    startY: 47,
     margin: { left: margin, right: margin },
     tableWidth: contentWidth,
     head: [["SUBJECT", "TOTAL MARKS", "OBTAINED MARKS", "GRADE", "PERCENTAGE", "GRADE POINT (GPA)", "DESCRIPTION / STATUS"]],
@@ -151,21 +146,21 @@ export const downloadReportCard = async (
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(20, 52, 93);
-  doc.text("Position :", margin, tableEndY + 14);
   doc.setDrawColor(20, 52, 93);
-  doc.roundedRect(margin + 24, tableEndY + 7, 28, 11, 1.5, 1.5);
+  doc.text("Position :", margin, tableEndY + 8);
+  doc.line(margin + 25, tableEndY + 9, margin + 55, tableEndY + 9);
   doc.setFont("helvetica", "normal");
-  doc.text(ordinal(position), margin + 38, tableEndY + 14, { align: "center" });
+  doc.text(ordinal(position), margin + 40, tableEndY + 8, { align: "center" });
   doc.setFont("helvetica", "bold");
-  doc.text("Remarks :", margin, tableEndY + 29);
+  doc.text("Remarks :", margin, tableEndY + 20);
   doc.setDrawColor(20, 52, 93);
-  doc.rect(margin, tableEndY + 33, contentWidth, 15);
+  doc.rect(margin, tableEndY + 23, contentWidth, 12);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
-  doc.text("Teacher's Signature: ____________________", margin, tableEndY + 57);
-  doc.text("Principal's Signature: ____________________", pageWidth - margin, tableEndY + 57, { align: "right" });
+  doc.text("Teacher's Signature: ____________________", margin, tableEndY + 44);
+  doc.text("Principal's Signature: ____________________", pageWidth - margin, tableEndY + 44, { align: "right" });
 
-  const gradingStartY = 201;
+  const gradingStartY = tableEndY + 50;
   const gradingGap = 4;
   const gradingTableWidth = (contentWidth - gradingGap) / 2;
   const gradingColumnStyles = {
