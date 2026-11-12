@@ -19,9 +19,9 @@ router
 
 router
   .route("/:id")
-  .put(protect, adminOnly, studentIdParam, studentValidators, validate, updateStudent)
+  .put(protect, studentIdParam, studentValidators, validate, updateStudent)
   .delete(protect, adminOnly, studentIdParam, validate, deleteStudent);
 
-router.post("/:id/photo", protect, adminOnly, studentIdParam, validate, upload.single("photo"), uploadStudentPhotoHandler);
+router.post("/:id/photo", protect, studentIdParam, validate, upload.single("photo"), uploadStudentPhotoHandler);
 
 export default router;

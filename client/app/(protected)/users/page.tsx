@@ -1,29 +1,33 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { Mail, ShieldCheck, UserPlus, Users } from "lucide-react";
+import { Mail, Pencil, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import Avatar from "@/components/ui/Avatar";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import DataTable from "@/components/ui/DataTable";
 import Input from "@/components/ui/Input";
+import Modal from "@/components/ui/Modal";
 import PageHeader from "@/components/ui/PageHeader";
 import { useAuth } from "@/features/auth/AuthProvider";
 import type { User } from "@/types";
 import * as userService from "@/services/userService";
-import { userFormSchema, type UserFormValues } from "@/features/forms/schemas";
+import { userEditFormSchema, userFormSchema, type UserEditFormValues, type UserFormValues } from "@/features/forms/schemas";
 
 export default function ManageUsersPage() {
   const router = useRouter();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [deletingUser, setDeletingUser] = useState<User | null>(null);
 
   useEffect(() => {
     if (user?.role && user.role !== "admin") router.replace("/dashboard");
@@ -49,6 +53,34 @@ export default function ManageUsersPage() {
     },
     onError: (err) => toast.error(err.message),
   });
+
+  const editForm = useForm<UserEditFormValues>({
+    resolver: zodResolver(userEditFormSchema),
+    defaultValues: { name: "", email: "", password: "" },
+  });
+  const updateMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: userService.UpdateUserPayload }) => userService.updateUser(id, payload),
+    onSuccess: () => {
+      toast.success("Employee account updated");
+      setEditingUser(null);
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+  const deleteMutation = useMutation({
+    mutationFn: userService.deleteUser,
+    onSuccess: () => {
+      toast.success("Employee account deleted");
+      setDeletingUser(null);
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const openEdit = (selectedUser: User) => {
+    setEditingUser(selectedUser);
+    editForm.reset({ name: selectedUser.name, email: selectedUser.email, password: "" });
+  };
 
   if (user?.role !== "admin") return null;
 
@@ -98,6 +130,27 @@ export default function ManageUsersPage() {
           })}
         </span>
       ),
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: (info) => {
+        const row = info.row.original;
+        if (row.role !== "employee") return null;
+        return (
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" icon={Pencil} onClick={() => openEdit(row)} title="Edit employee" />
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={Trash2}
+              onClick={() => setDeletingUser(row)}
+              className="text-red-400 hover:bg-danger/15"
+              title="Delete employee"
+            />
+          </div>
+        );
+      },
     },
   ];
 
@@ -169,6 +222,41 @@ export default function ManageUsersPage() {
           }}
         />
       </Card>
+      <Modal open={Boolean(editingUser)} onClose={() => setEditingUser(null)} title="Edit Employee" subtitle="Update employee account details" size="md">
+        <form
+          noValidate
+          onSubmit={editForm.handleSubmit((values) => {
+            const payload: userService.UpdateUserPayload = {
+              name: values.name.trim(),
+              email: values.email.trim(),
+              ...(values.password ? { password: values.password } : {}),
+            };
+            if (editingUser) updateMutation.mutate({ id: editingUser.id, payload });
+          })}
+          className="space-y-4"
+        >
+          <Input label="Full Name" error={editForm.formState.errors.name?.message} {...editForm.register("name")} />
+          <Input label="Email" icon={Mail} type="email" error={editForm.formState.errors.email?.message} {...editForm.register("email")} />
+          <Input
+            label="New Password (optional)"
+            type="password"
+            error={editForm.formState.errors.password?.message}
+            {...editForm.register("password")}
+          />
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="ghost" type="button" onClick={() => setEditingUser(null)}>Cancel</Button>
+            <Button type="submit" loading={updateMutation.isPending}>Save Changes</Button>
+          </div>
+        </form>
+      </Modal>
+      <ConfirmDialog
+        open={Boolean(deletingUser)}
+        onClose={() => setDeletingUser(null)}
+        onConfirm={() => deletingUser && deleteMutation.mutate(deletingUser.id)}
+        title="Delete employee"
+        message={`Delete "${deletingUser?.name}"? This account will no longer be able to sign in.`}
+        loading={deleteMutation.isPending}
+      />
     </>
   );
 }

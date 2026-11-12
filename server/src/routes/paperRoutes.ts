@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
-import { protect } from "../middleware/auth";
+import { protect, adminOnly } from "../middleware/auth";
 import validate from "../middleware/validate";
 import { paperValidators, paperIdParam } from "../validators/paperValidators";
 import { getPapers, uploadPaper, uploadPaperWithFile, streamPaperFile, deletePaper } from "../controllers/paperController";
@@ -11,9 +11,9 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 
 router.get("/", protect, getPapers);
 router.get("/:id/file", protect, streamPaperFile);
 
-router.post("/upload", protect, upload.single("file"), uploadPaperWithFile);
-router.post("/", protect, paperValidators, validate, uploadPaper);
+router.post("/upload", protect, adminOnly, upload.single("file"), uploadPaperWithFile);
+router.post("/", protect, adminOnly, paperValidators, validate, uploadPaper);
 
-router.delete("/:id", protect, paperIdParam, validate, deletePaper);
+router.delete("/:id", protect, adminOnly, paperIdParam, validate, deletePaper);
 
 export default router;

@@ -28,8 +28,11 @@ import * as studentService from "@/services/studentService";
 import type { StudentPayload } from "@/services/studentService";
 import { useClassesQuery, useSubjectsQuery } from "@/features/meta/useMetaQueries";
 import { studentFormSchema, type StudentFormValues } from "@/features/forms/schemas";
+import { useAuth } from "@/features/auth/AuthProvider";
 
 export default function ManageStudentsPage() {
+  const { user } = useAuth();
+  const canManageStudents = user?.role === "admin";
   const { data, pagination, loading, params, setFilter, refresh, searchInput, setSearchInput } =
     usePaginatedQuery<StudentPerformance>(["students"], studentService.getStudents, {
       initialParams: { page: 1, limit: 10 },
@@ -93,7 +96,7 @@ export default function ManageStudentsPage() {
     [form]
   );
 
-  useKeyShortcut("n", openCreate);
+  useKeyShortcut("n", canManageStudents ? openCreate : () => undefined);
   useKeyShortcut("/", () => searchRef.current?.focus());
 
   const createMutation = useMutation({
@@ -227,14 +230,16 @@ export default function ManageStudentsPage() {
               loading={photoMutation.isPending && photoStudent?._id === row._id}
             />
             <Button variant="ghost" size="sm" icon={Pencil} onClick={() => openEdit(row)} title="Edit student" />
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={Trash2}
-              onClick={() => setDeleting(row)}
-              className="text-red-400 hover:bg-danger/15"
-              title="Delete student"
-            />
+            {canManageStudents && (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={Trash2}
+                onClick={() => setDeleting(row)}
+                className="text-red-400 hover:bg-danger/15"
+                title="Delete student"
+              />
+            )}
           </div>
         );
       },
@@ -281,7 +286,7 @@ export default function ManageStudentsPage() {
           emptyState={{
             icon: Users,
             title: "No students found",
-            description: "Try adjusting your filters or add a new student.",
+            description: canManageStudents ? "Try adjusting your filters or add a new student." : "Try adjusting your filters.",
           }}
         />
         <div className="border-t border-white/10 px-4">
@@ -336,7 +341,7 @@ export default function ManageStudentsPage() {
         loading={deleteMutation.isPending}
       />
 
-      <FAB icon={Plus} label="Add Student" onClick={openCreate} shortcut="n" />
+      {canManageStudents && <FAB icon={Plus} label="Add Student" onClick={openCreate} shortcut="n" />}
     </>
   );
 }

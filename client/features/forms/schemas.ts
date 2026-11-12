@@ -28,6 +28,16 @@ export const userFormSchema = z
 
 export type UserFormValues = z.infer<typeof userFormSchema>;
 
+export const userEditFormSchema = z.object({
+  name: z.string().min(1, "Name is required").min(3, "Name is too short"),
+  email: z.string().min(1, "Email is required").email("Enter a valid email address"),
+  password: z
+    .string()
+    .refine((value) => !value || /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/.test(value), "Must be 8+ characters with upper, lower, number and special character"),
+});
+
+export type UserEditFormValues = z.infer<typeof userEditFormSchema>;
+
 export const nameFormSchema = z.object({
   name: z.string().min(1, "Name is required").max(60, "Too long"),
 });

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { protect } from "../middleware/auth";
+import { protect, adminOnly } from "../middleware/auth";
 import validate from "../middleware/validate";
 import {
   examMarkValidators,
@@ -22,12 +22,12 @@ const router = Router();
 router
   .route("/")
   .get(protect, getExamMarks)
-  .post(protect, examMarkValidators, validate, saveExamMark);
+  .post(protect, adminOnly, examMarkValidators, validate, saveExamMark);
 
-router.post("/column", protect, examColumnValidators, validate, createExamSubjectColumn);
-router.put("/column", protect, examColumnUpdateValidators, validate, updateExamSubjectColumn);
-router.delete("/column", protect, examColumnDeleteValidators, validate, deleteExamSubjectColumn);
+router.post("/column", protect, adminOnly, examColumnValidators, validate, createExamSubjectColumn);
+router.put("/column", protect, adminOnly, examColumnUpdateValidators, validate, updateExamSubjectColumn);
+router.delete("/column", protect, adminOnly, examColumnDeleteValidators, validate, deleteExamSubjectColumn);
 
-router.put("/:id", protect, examMarkIdParam, examMarkValidators, validate, updateExamMark);
+router.put("/:id", protect, adminOnly, examMarkIdParam, examMarkValidators, validate, updateExamMark);
 
 export default router;
