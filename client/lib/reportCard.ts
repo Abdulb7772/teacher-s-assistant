@@ -40,10 +40,7 @@ export const downloadReportCard = async (
     import("jspdf"),
     import("jspdf-autotable"),
   ]);
-  const [logo, watermark] = await Promise.all([
-    imageDataUrl("/report-card-logo.png"),
-    imageDataUrl("/report-card-watermark.jpeg"),
-  ]);
+  const watermark = await imageDataUrl("/report-card-watermark.jpeg");
   const studentPhoto = student.photoUrl ? await imageDataUrl(student.photoUrl) : null;
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: [216, 280] });
@@ -60,7 +57,7 @@ export const downloadReportCard = async (
   );
   const overallPercentage = percentageOf(obtainedMarks, totalMarks);
   const overallGrade = gradeFor(overallPercentage);
-  const topOffset = topReserved;
+  const topOffset = topReserved - 8;
 
   doc.setFillColor(255, 255, 255);
   doc.rect(0, 0, pageWidth, pageHeight, "F");
@@ -69,19 +66,18 @@ export const downloadReportCard = async (
   doc.addImage(watermark, "JPEG", pageWidth / 2 - 42, topReserved + 28, 84, 84);
   doc.restoreGraphicsState();
 
-  doc.addImage(logo, "PNG", pageWidth / 2 - 48, topOffset, 96, 19.2);
   doc.setTextColor(20, 52, 93);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
-  doc.text("1st Term Exams", pageWidth / 2, topOffset + 24, { align: "center" });
+  doc.text("1st Term Exams", pageWidth / 2, topOffset + 8, { align: "center" });
   doc.setFontSize(11);
-  doc.text("MARK SHEET", pageWidth / 2, topOffset + 31, { align: "center" });
+  doc.text("MARK SHEET", pageWidth / 2, topOffset + 15, { align: "center" });
   doc.setFont("helvetica", "normal");
 
   doc.setFontSize(8);
-  doc.text(`NAME: ${student.name}`, margin + 2, topOffset + 41);
-  doc.text(`CLASS: ${className}`, pageWidth - margin - 2, topOffset + 41, { align: "right" });
-  if (studentPhoto) doc.addImage(studentPhoto, "JPEG", pageWidth - margin - 20, topOffset + 25, 20, 18);
+  doc.text(`NAME: ${student.name}`, margin + 2, topOffset + 25);
+  doc.text(`CLASS: ${className}`, pageWidth - margin - 2, topOffset + 25, { align: "right" });
+  if (studentPhoto) doc.addImage(studentPhoto, "JPEG", pageWidth - margin - 20, topOffset + 9, 20, 18);
 
   const rows = marks.map((mark) => {
     const hasMark = mark.obtainedMarks !== null && mark.obtainedMarks !== undefined;
@@ -100,7 +96,7 @@ export const downloadReportCard = async (
   });
 
   autoTable(doc, {
-    startY: topOffset + 47,
+    startY: topOffset + 31,
     margin: { left: margin, right: margin },
     tableWidth: contentWidth,
     head: [["SUBJECT", "TOTAL MARKS", "OBTAINED MARKS", "GRADE", "PERCENTAGE", "GRADE POINT (GPA)", "DESCRIPTION / STATUS"]],
@@ -116,7 +112,7 @@ export const downloadReportCard = async (
         "",
       ],
     ],
-    theme: "grid",
+    theme: "plain",
     styles: {
       font: "helvetica",
       fontSize: 7,
@@ -163,15 +159,13 @@ export const downloadReportCard = async (
       font: "helvetica",
       fontSize: 5.5,
       cellPadding: 0.7,
-      textColor: [100, 100, 100],
+      textColor: [80, 80, 80],
       fillColor: [255, 255, 255],
-      lineColor: [150, 150, 150],
-      lineWidth: 0.1,
       halign: "center",
     },
     headStyles: {
       fillColor: [255, 255, 255],
-      textColor: [100, 100, 100],
+      textColor: [80, 80, 80],
       fontStyle: "bold",
       fontSize: 5.5,
     },
