@@ -161,7 +161,7 @@ export const downloadReportCard = async (
   doc.line(margin, remarksLabelY + 4, pageWidth - margin, remarksLabelY + 4);
   doc.line(margin, remarksLabelY + 10, pageWidth - margin, remarksLabelY + 10);
 
-  const gradingStartY = remarksLabelY + 18;
+  const gradingStartY = remarksLabelY + 24;
   doc.saveGraphicsState();
   doc.setGState(doc.GState({ opacity: 0.32 }));
   autoTable(doc, {
