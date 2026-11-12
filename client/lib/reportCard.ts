@@ -22,6 +22,13 @@ const imageDataUrl = async (url: string): Promise<string> => {
   });
 };
 
+const GRADE_SCHEME = [
+  ["A++", "95-100", "5.0"], ["A+", "90-94", "4.7"], ["A", "85-89", "4.3"],
+  ["B++", "80-84", "4.0"], ["B+", "75-79", "3.7"], ["B", "70-74", "3.3"],
+  ["C+", "65-69", "3.0"], ["C", "60-64", "3.0"], ["D", "50-59", "2.0"],
+  ["E", "40-49", "1.0"], ["U", "0-39", "0.0"],
+];
+
 export const downloadReportCard = async (
   student: Student,
   className: string,
@@ -33,14 +40,16 @@ export const downloadReportCard = async (
     import("jspdf"),
     import("jspdf-autotable"),
   ]);
+  const logo = await imageDataUrl("/report-card-logo.png");
   const studentPhoto = student.photoUrl ? await imageDataUrl(student.photoUrl) : null;
 
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: [216, 280] });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const contentWidth = 174;
   const margin = (pageWidth - contentWidth) / 2;
-  const topOffset = 62;
+  const topReserved = 70;
+  const bottomReserved = 10;
   const totalMarks = marks.reduce((sum, mark) => sum + Number(mark.totalMarks), 0);
   const obtainedMarks = marks.reduce(
     (sum, mark) => sum + (mark.obtainedMarks === null ? 0 : Number(mark.obtainedMarks)),
@@ -48,9 +57,29 @@ export const downloadReportCard = async (
   );
   const overallPercentage = percentageOf(obtainedMarks, totalMarks);
   const overallGrade = gradeFor(overallPercentage);
+  const estimatedTableHeight = 7 + (marks.length + 1) * 7;
+  const contentHeight = 47 + estimatedTableHeight + 44;
+  const topOffset = topReserved + Math.max(0, (pageHeight - topReserved - bottomReserved - contentHeight) / 2);
 
   doc.setFillColor(255, 255, 255);
   doc.rect(0, 0, pageWidth, pageHeight, "F");
+  doc.saveGraphicsState();
+  doc.setGState(doc.GState({ opacity: 0.08 }));
+  doc.addImage(logo, "PNG", pageWidth / 2 - 48, topReserved + 20, 96, 19.2);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(120, 120, 120);
+  doc.text("GRADING SCHEME", pageWidth / 2, topReserved + 58, { align: "center" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  GRADE_SCHEME.forEach(([grade, percentage, gpa], index) => {
+    const column = index < 6 ? 0 : 1;
+    const row = index < 6 ? index : index - 6;
+    const x = margin + 35 + column * 70;
+    const y = topReserved + 65 + row * 8;
+    doc.text(`${grade}   ${percentage}   GPA ${gpa}`, x, y);
+  });
+  doc.restoreGraphicsState();
 
   doc.setTextColor(20, 52, 93);
   doc.setFont("helvetica", "bold");
