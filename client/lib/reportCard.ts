@@ -118,7 +118,7 @@ export const downloadReportCard = async (
       fontSize: 7,
       cellPadding: 1.25,
       textColor: [20, 30, 45],
-      fillColor: [255, 255, 255],
+      fillColor: false,
       lineColor: [20, 52, 93],
       lineWidth: 0.15,
       halign: "center",
@@ -154,7 +154,7 @@ export const downloadReportCard = async (
     tableWidth: contentWidth,
     head: [["MARKS / GRADE TABLE", "", ""]],
     body: GRADE_SCHEME.map(([grade, percentage, gpa]) => [grade, percentage, `GPA ${gpa}`]),
-    theme: "grid",
+    theme: "plain",
     styles: {
       font: "helvetica",
       fontSize: 5.5,
@@ -182,19 +182,21 @@ export const downloadReportCard = async (
   doc.setFontSize(8);
   doc.setTextColor(20, 52, 93);
   doc.setDrawColor(20, 52, 93);
-  const signatureY = Math.min(gradingEndY + 44, pageHeight - bottomReserved);
+  const signatureY = Math.min(gradingEndY + 44, pageHeight - bottomReserved - 4);
   doc.text("Position :", margin, gradingEndY + 8);
   doc.line(margin + 25, gradingEndY + 9, margin + 55, gradingEndY + 9);
   doc.setFont("helvetica", "normal");
   doc.text(ordinal(position), margin + 40, gradingEndY + 8, { align: "center" });
   doc.setFont("helvetica", "bold");
-  doc.text("Remarks :", margin, gradingEndY + 20);
-  doc.setDrawColor(20, 52, 93);
-  doc.rect(margin, gradingEndY + 23, contentWidth, 12);
+  const remarksLabelY = gradingEndY + 20;
+  doc.text("Remarks :", margin, remarksLabelY);
+  doc.setDrawColor(100, 110, 125);
+  doc.line(margin, remarksLabelY + 4, pageWidth - margin, remarksLabelY + 4);
+  doc.line(margin, remarksLabelY + 10, pageWidth - margin, remarksLabelY + 10);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
-  doc.text("Teacher's Signature: ____________________", margin, signatureY);
-  doc.text("Principal's Signature: ____________________", pageWidth - margin, signatureY, { align: "right" });
+  doc.text("Teacher's Signature: ____________________", margin, signatureY + 4);
+  doc.text("Principal's Signature: ____________________", pageWidth - margin, signatureY + 4, { align: "right" });
 
   doc.save(`${cleanFileName(student.name)}-${cleanFileName(termName)}-report-card.pdf`);
 };
