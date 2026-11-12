@@ -145,7 +145,23 @@ export const downloadReportCard = async (
   });
 
   const tableEndY = (doc as typeof doc & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? topOffset + 47;
-  const gradingStartY = tableEndY + 9;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(20, 52, 93);
+  doc.setDrawColor(20, 52, 93);
+  const positionY = tableEndY + 8;
+  doc.text("Position :", margin, positionY);
+  doc.line(margin + 25, positionY + 1, margin + 55, positionY + 1);
+  doc.setFont("helvetica", "normal");
+  doc.text(ordinal(position), margin + 40, positionY, { align: "center" });
+  doc.setFont("helvetica", "bold");
+  const remarksLabelY = tableEndY + 20;
+  doc.text("Remarks :", margin, remarksLabelY);
+  doc.setDrawColor(100, 110, 125);
+  doc.line(margin, remarksLabelY + 4, pageWidth - margin, remarksLabelY + 4);
+  doc.line(margin, remarksLabelY + 10, pageWidth - margin, remarksLabelY + 10);
+
+  const gradingStartY = remarksLabelY + 18;
   doc.saveGraphicsState();
   doc.setGState(doc.GState({ opacity: 0.32 }));
   autoTable(doc, {
@@ -178,21 +194,7 @@ export const downloadReportCard = async (
   doc.restoreGraphicsState();
 
   const gradingEndY = (doc as typeof doc & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? gradingStartY + 55;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.setTextColor(20, 52, 93);
-  doc.setDrawColor(20, 52, 93);
   const signatureY = Math.min(gradingEndY + 44, pageHeight - bottomReserved - 4);
-  doc.text("Position :", margin, gradingEndY + 8);
-  doc.line(margin + 25, gradingEndY + 9, margin + 55, gradingEndY + 9);
-  doc.setFont("helvetica", "normal");
-  doc.text(ordinal(position), margin + 40, gradingEndY + 8, { align: "center" });
-  doc.setFont("helvetica", "bold");
-  const remarksLabelY = gradingEndY + 20;
-  doc.text("Remarks :", margin, remarksLabelY);
-  doc.setDrawColor(100, 110, 125);
-  doc.line(margin, remarksLabelY + 4, pageWidth - margin, remarksLabelY + 4);
-  doc.line(margin, remarksLabelY + 10, pageWidth - margin, remarksLabelY + 10);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
   doc.text("Teacher's Signature: ____________________", margin, signatureY + 4);
