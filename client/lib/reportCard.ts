@@ -159,11 +159,12 @@ export const downloadReportCard = async (
   doc.text("Remarks :", margin, remarksLabelY);
   doc.setDrawColor(100, 110, 125);
   doc.line(margin, remarksLabelY + 4, pageWidth - margin, remarksLabelY + 4);
-  doc.line(margin, remarksLabelY + 10, pageWidth - margin, remarksLabelY + 10);
+  doc.line(margin, remarksLabelY + 11, pageWidth - margin, remarksLabelY + 11);
+  doc.line(margin, remarksLabelY + 18, pageWidth - margin, remarksLabelY + 18);
 
   const gradingStartY = remarksLabelY + 24;
   doc.saveGraphicsState();
-  doc.setGState(doc.GState({ opacity: 0.32 }));
+  doc.setGState(doc.GState({ opacity: 0.52 }));
   autoTable(doc, {
     startY: gradingStartY,
     margin: { left: margin, right: margin },
@@ -175,13 +176,13 @@ export const downloadReportCard = async (
       font: "helvetica",
       fontSize: 5.5,
       cellPadding: 0.7,
-      textColor: [80, 80, 80],
+      textColor: [45, 45, 45],
       fillColor: [255, 255, 255],
       halign: "center",
     },
     headStyles: {
       fillColor: [255, 255, 255],
-      textColor: [80, 80, 80],
+      textColor: [45, 45, 45],
       fontStyle: "bold",
       fontSize: 5.5,
     },
