@@ -10,10 +10,24 @@ const ordinal = (value: string): string => {
   return `${rank}${suffix}`;
 };
 
-const imageDataUrl = async (url: string): Promise<string> => {
+const imageDataUrl = async (url: string, normalizeOrientation = false): Promise<string> => {
   const response = await fetch(url);
   if (!response.ok) throw new Error("Report card image could not be loaded");
   const blob = await response.blob();
+  if (normalizeOrientation) {
+    const bitmap = await createImageBitmap(blob, { imageOrientation: "from-image" });
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const context = canvas.getContext("2d");
+    if (!context) {
+      bitmap.close();
+      throw new Error("Report card image could not be prepared");
+    }
+    context.drawImage(bitmap, 0, 0);
+    bitmap.close();
+    return canvas.toDataURL("image/jpeg", 0.95);
+  }
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
@@ -41,7 +55,7 @@ export const downloadReportCard = async (
     import("jspdf-autotable"),
   ]);
   const watermark = await imageDataUrl("/report-card-watermark.jpeg");
-  const studentPhoto = student.photoUrl ? await imageDataUrl(student.photoUrl) : null;
+  const studentPhoto = student.photoUrl ? await imageDataUrl(student.photoUrl, true) : null;
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: [216, 280] });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -76,7 +90,7 @@ export const downloadReportCard = async (
 
   doc.setFontSize(8);
   doc.text(`NAME: ${student.name}`, margin + 2, topOffset + 25);
-  doc.text(`CLASS: ${className}`, pageWidth - margin - 2, topOffset + 25, { align: "right" });
+  doc.text(`CLASS: ${className}`, pageWidth - margin - 24, topOffset + 25, { align: "right" });
   if (studentPhoto) doc.addImage(studentPhoto, "JPEG", pageWidth - margin - 20, topOffset + 9, 20, 18);
 
   const rows = marks.map((mark) => {
@@ -149,20 +163,20 @@ export const downloadReportCard = async (
   doc.setFontSize(8);
   doc.setTextColor(20, 52, 93);
   doc.setDrawColor(20, 52, 93);
-  const positionY = tableEndY + 8;
+  const positionY = tableEndY + 10;
   doc.text("Position :", margin, positionY);
   doc.line(margin + 25, positionY + 1, margin + 55, positionY + 1);
   doc.setFont("helvetica", "normal");
   doc.text(ordinal(position), margin + 40, positionY, { align: "center" });
   doc.setFont("helvetica", "bold");
-  const remarksLabelY = tableEndY + 20;
+  const remarksLabelY = tableEndY + 24;
   doc.text("Remarks :", margin, remarksLabelY);
   doc.setDrawColor(100, 110, 125);
   doc.line(margin, remarksLabelY + 4, pageWidth - margin, remarksLabelY + 4);
   doc.line(margin, remarksLabelY + 11, pageWidth - margin, remarksLabelY + 11);
   doc.line(margin, remarksLabelY + 18, pageWidth - margin, remarksLabelY + 18);
 
-  const gradingStartY = remarksLabelY + 24;
+  const gradingStartY = remarksLabelY + 30;
   doc.saveGraphicsState();
   doc.setGState(doc.GState({ opacity: 0.52 }));
   autoTable(doc, {
