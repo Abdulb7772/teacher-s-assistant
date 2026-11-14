@@ -29,10 +29,19 @@ export const saveExamMark = asyncHandler(async (req: Request, res: Response) => 
 
   const mark = await ExamMark.findOneAndUpdate(
     { termId, studentId, subject },
-    { $set: { class: student.class, totalMarks, obtainedMarks } },
+    { $set: { class: student.class, totalMarks, obtainedMarks, absent: false } },
     { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
   );
   res.status(201).json({ success: true, message: "Marks saved", data: mark });
+});
+
+export const markAbsent = asyncHandler(async (req: Request, res: Response) => {
+  const { termId, className, subject } = req.body as { termId: string; className: string; subject: string };
+  const result = await ExamMark.updateMany(
+    { termId, class: className, subject, obtainedMarks: null, absent: { $ne: true } },
+    { $set: { absent: true } }
+  );
+  res.json({ success: true, message: "Students without marks were marked absent", data: { updated: result.modifiedCount } });
 });
 
 export const createExamSubjectColumn = asyncHandler(async (req: Request, res: Response) => {
@@ -67,7 +76,9 @@ export const createExamSubjectColumn = asyncHandler(async (req: Request, res: Re
 });
 
 export const updateExamMark = asyncHandler(async (req: Request, res: Response) => {
-  const mark = await ExamMark.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+  const update = { ...req.body };
+  if (req.body.obtainedMarks !== null && req.body.obtainedMarks !== undefined) update.absent = false;
+  const mark = await ExamMark.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true });
   if (!mark) throw new ApiError(404, "Exam mark not found");
   res.json({ success: true, message: "Marks saved", data: mark });
 });

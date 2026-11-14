@@ -7,6 +7,7 @@ export interface IExamMark extends Document {
   subject: string;
   totalMarks: number;
   obtainedMarks: number | null;
+  absent: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -19,6 +20,7 @@ const examMarkSchema = new Schema<IExamMark>(
     subject: { type: String, required: [true, "Subject is required"], trim: true, maxlength: [60, "Subject too long"] },
     totalMarks: { type: Number, required: true, min: [1, "Total marks must be positive"] },
     obtainedMarks: { type: Number, default: null, min: [0, "Obtained marks cannot be negative"] },
+    absent: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

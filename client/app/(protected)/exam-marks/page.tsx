@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { CalendarDays, FileDown, GraduationCap, ListChecks, Pencil, Plus, Trash2, Users } from "lucide-react";
+import { CalendarDays, FileDown, GraduationCap, ListChecks, Pencil, Plus, Trash2, UserX, Users } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
@@ -155,10 +155,9 @@ export default function ExamMarksPage() {
       .filter((entry) => entry.percentage >= PASS_PERCENT);
     ranked.sort((a, b) => b.percentage - a.percentage);
     const positions = new Map<string, number>();
-    let rank = 1;
     ranked.forEach((entry, index) => {
-      if (index > 0 && entry.percentage < ranked[index - 1].percentage) rank++;
-      positions.set(entry.id, rank);
+      const position = index > 0 && entry.percentage === ranked[index - 1].percentage ? positions.get(ranked[index - 1].id) ?? index + 1 : index + 1;
+      positions.set(entry.id, position);
     });
     return positions;
   }, [students, statsFor]);
@@ -171,13 +170,7 @@ export default function ExamMarksPage() {
         const studentMarks = subjectColumns
           .map((column) => markFor(student._id, column.subject))
           .filter((mark): mark is ExamMark => Boolean(mark));
-        const stats = statsFor(student._id);
-        const position = stats
-          ? stats.percentage < PASS_PERCENT
-            ? "Failed"
-            : String(positionMap.get(student._id) ?? "—")
-          : "—";
-        await downloadReportCard(student, selectedClass, activeTerm.name, studentMarks, position);
+        await downloadReportCard(student, selectedClass, activeTerm.name, studentMarks);
         toast.success(`Report card generated for ${student.name}`);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Report card could not be generated");
@@ -185,7 +178,7 @@ export default function ExamMarksPage() {
         setReportCardStudentId(null);
       }
     },
-    [activeTerm, selectedClass, subjectColumns, markFor, statsFor, positionMap]
+    [activeTerm, selectedClass, subjectColumns, markFor]
   );
 
   const invalidateMarks = useCallback(() => {
@@ -295,6 +288,20 @@ export default function ExamMarksPage() {
     onError: (err) => toast.error(err.message),
   });
 
+  const markAbsentMutation = useMutation({
+    mutationFn: (subject: string) =>
+      examService.markAbsent({
+        termId: activeTermId as string,
+        className: selectedClass as string,
+        subject,
+      }),
+    onSuccess: (response) => {
+      toast.success(`${response.data.updated} student${response.data.updated === 1 ? "" : "s"} marked absent`);
+      invalidateMarks();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   const startEdit = useCallback(
     (student: StudentPerformance, column: { subject: string; total: number }) => {
       const mark = markFor(student._id, column.subject);
@@ -365,7 +372,7 @@ export default function ExamMarksPage() {
             }`}
             title={hasMarks ? "Edit marks" : "Add marks"}
           >
-            {hasMarks ? `${mark.obtainedMarks}/${mark.totalMarks}` : "—"}
+            {hasMarks ? `${mark.obtainedMarks}/${mark.totalMarks}` : mark?.absent ? "Absent" : "—"}
           </button>
         )}
       </td>
@@ -643,6 +650,16 @@ export default function ExamMarksPage() {
             </div>
             <div className="flex items-center gap-3 text-xs text-white/45">
               <span>Click any mark to edit it</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={UserX}
+                onClick={() => markAbsentMutation.mutate(selectedColumn.subject)}
+                loading={markAbsentMutation.isPending}
+                title={`Mark students without ${selectedColumn.subject} marks absent`}
+              >
+                Mark absent
+              </Button>
               <div className="flex items-center gap-1">
                 <Button
                   variant="ghost"
@@ -744,6 +761,13 @@ export default function ExamMarksPage() {
                       <span className="mt-1 flex items-center justify-between gap-2">
                         <span className="text-[10px] font-normal normal-case text-white/35">out of {column.total}</span>
                         <span className="flex items-center gap-0.5">
+                          <button
+                            onClick={() => markAbsentMutation.mutate(column.subject)}
+                            className="rounded-md p-1 text-white/25 transition-colors hover:bg-gold/10 hover:text-gold"
+                            title={`Mark students without ${column.subject} marks absent`}
+                          >
+                            <UserX size={13} />
+                          </button>
                           <button
                             onClick={() => openEditSubject(column)}
                             className="rounded-md p-1 text-white/25 transition-colors hover:bg-gold/10 hover:text-gold"

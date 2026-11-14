@@ -111,6 +111,7 @@ export interface ExamMark {
   subject: string;
   totalMarks: number;
   obtainedMarks: number | null;
+  absent?: boolean;
   createdAt: string;
 }
 

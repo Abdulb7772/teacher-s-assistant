@@ -6,6 +6,7 @@ import {
   examColumnValidators,
   examColumnUpdateValidators,
   examColumnDeleteValidators,
+  absentMarkValidators,
   examMarkIdParam,
 } from "../validators/examMarkValidators";
 import {
@@ -15,6 +16,7 @@ import {
   updateExamMark,
   updateExamSubjectColumn,
   deleteExamSubjectColumn,
+  markAbsent,
 } from "../controllers/examMarkController";
 
 const router = Router();
@@ -25,6 +27,7 @@ router
   .post(protect, adminOnly, examMarkValidators, validate, saveExamMark);
 
 router.post("/column", protect, adminOnly, examColumnValidators, validate, createExamSubjectColumn);
+router.post("/absent", protect, adminOnly, absentMarkValidators, validate, markAbsent);
 router.put("/column", protect, adminOnly, examColumnUpdateValidators, validate, updateExamSubjectColumn);
 router.delete("/column", protect, adminOnly, examColumnDeleteValidators, validate, deleteExamSubjectColumn);
 

@@ -29,4 +29,10 @@ export const examColumnDeleteValidators = [
   body("subject").trim().notEmpty().withMessage("Subject is required"),
 ];
 
+export const absentMarkValidators = [
+  body("termId").isMongoId().withMessage("Select a valid term"),
+  body("className").trim().notEmpty().withMessage("Class is required"),
+  body("subject").trim().notEmpty().withMessage("Subject is required"),
+];
+
 export const examMarkIdParam = [param("id").isMongoId().withMessage("Invalid exam mark id")];

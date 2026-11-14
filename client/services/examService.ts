@@ -25,6 +25,9 @@ export const getExamMarks = (params: {
 export const saveExamMark = (payload: ExamMarkPayload): Promise<ApiResponse<ExamMark>> =>
   api.post("/exam-marks", payload).then((r) => r.data);
 
+export const markAbsent = (payload: { termId: string; className: string; subject: string }): Promise<ApiResponse<{ updated: number }>> =>
+  api.post("/exam-marks/absent", payload).then((r) => r.data);
+
 export const updateExamMark = (id: string, payload: ExamMarkPayload): Promise<ApiResponse<ExamMark>> =>
   api.put(`/exam-marks/${id}`, payload).then((r) => r.data);
 

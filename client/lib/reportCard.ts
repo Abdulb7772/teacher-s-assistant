@@ -3,13 +3,6 @@ import { gradeFor, percentageOf } from "@/lib/grades";
 
 const cleanFileName = (value: string): string => value.replace(/[^\w-]+/g, "-").replace(/^-|-$/g, "");
 
-const ordinal = (value: string): string => {
-  const rank = Number(value);
-  if (!Number.isInteger(rank) || rank < 1) return value;
-  const suffix = rank % 100 >= 11 && rank % 100 <= 13 ? "th" : rank % 10 === 1 ? "st" : rank % 10 === 2 ? "nd" : rank % 10 === 3 ? "rd" : "th";
-  return `${rank}${suffix}`;
-};
-
 const imageDataUrl = async (url: string, normalizeOrientation = false): Promise<string> => {
   const response = await fetch(url);
   if (!response.ok) throw new Error("Report card image could not be loaded");
@@ -47,8 +40,7 @@ export const downloadReportCard = async (
   student: Student,
   className: string,
   termName: string,
-  marks: ExamMark[],
-  position: string
+  marks: ExamMark[]
 ): Promise<void> => {
   const [{ jsPDF }, { default: autoTable }] = await Promise.all([
     import("jspdf"),
@@ -64,11 +56,9 @@ export const downloadReportCard = async (
   const margin = (pageWidth - contentWidth) / 2;
   const topReserved = 60;
   const bottomReserved = 20;
-  const totalMarks = marks.reduce((sum, mark) => sum + Number(mark.totalMarks), 0);
-  const obtainedMarks = marks.reduce(
-    (sum, mark) => sum + (mark.obtainedMarks === null ? 0 : Number(mark.obtainedMarks)),
-    0
-  );
+  const completedMarks = marks.filter((mark) => mark.obtainedMarks !== null && mark.obtainedMarks !== undefined);
+  const totalMarks = completedMarks.reduce((sum, mark) => sum + Number(mark.totalMarks), 0);
+  const obtainedMarks = completedMarks.reduce((sum, mark) => sum + Number(mark.obtainedMarks), 0);
   const overallPercentage = percentageOf(obtainedMarks, totalMarks);
   const overallGrade = gradeFor(overallPercentage);
   const topOffset = topReserved - 8;
@@ -162,14 +152,7 @@ export const downloadReportCard = async (
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(20, 52, 93);
-  doc.setDrawColor(20, 52, 93);
-  const positionY = tableEndY + 10;
-  doc.text("Position :", margin, positionY);
-  doc.line(margin + 25, positionY + 1, margin + 55, positionY + 1);
-  doc.setFont("helvetica", "normal");
-  doc.text(ordinal(position), margin + 40, positionY, { align: "center" });
-  doc.setFont("helvetica", "bold");
-  const remarksLabelY = tableEndY + 24;
+  const remarksLabelY = tableEndY + 12;
   doc.text("Remarks :", margin, remarksLabelY);
   doc.setDrawColor(100, 110, 125);
   doc.line(margin, remarksLabelY + 4, pageWidth - margin, remarksLabelY + 4);
