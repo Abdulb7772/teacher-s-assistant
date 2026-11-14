@@ -95,7 +95,7 @@ export const downloadReportCard = async (
       grade ? grade.grade : "",
       percentage === null ? "" : `${percentage}%`,
       grade ? grade.gpa.toFixed(1) : "",
-      "",
+      mark.absent ? "ABSENT" : "",
     ];
   });
 
@@ -152,7 +152,11 @@ export const downloadReportCard = async (
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(20, 52, 93);
-  const remarksLabelY = tableEndY + 12;
+  doc.setDrawColor(20, 52, 93);
+  const positionY = tableEndY + 10;
+  doc.text("Position :", margin, positionY);
+  doc.line(margin + 25, positionY + 1, margin + 55, positionY + 1);
+  const remarksLabelY = tableEndY + 24;
   doc.text("Remarks :", margin, remarksLabelY);
   doc.setDrawColor(100, 110, 125);
   doc.line(margin, remarksLabelY + 4, pageWidth - margin, remarksLabelY + 4);
